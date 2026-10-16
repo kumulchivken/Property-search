@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Property Watch</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a working ledger. Sticky tab bar over one column of panels; property cards stack, each with a price-band ruler. */
+:root {
+  --bg: #f3f5f2;
+  --surface: #ffffff;
+  --sunk: #e8ece6;
+  --ink: #17221d;
+  --muted: #5b6a62;
+  --line: #d3dbd5;
+  --accent: #1f6b55;        /* eucalypt */
+  --accent-ink: #ffffff;
+  --accent-soft: #dcebe4;
+  --good: #227a3d;  --good-soft: #dff0e2;
+  --warn: #9a6200;  --warn-soft: #f8ecd2;
+  --bad: #b23a2c;   --bad-soft: #f8e1dd;
+  --info: #2c5d96;  --info-soft: #e0eaf6;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Public Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111814; --surface: #18221d; --sunk: #0d1310; --ink: #e4ece7; --muted: #95a59c; --line: #2b3a32;
+    --accent: #5cc4a0; --accent-ink: #08130e; --accent-soft: #1d3a2f;
+    --good: #6fd08a; --good-soft: #183323; --warn: #e7b65a; --warn-soft: #3a2e16;
+    --bad: #f08a7c; --bad-soft: #3d1f1b; --info: #8db8ea; --info-soft: #1b2b40;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111814; --surface: #18221d; --sunk: #0d1310; --ink: #e4ece7; --muted: #95a59c; --line: #2b3a32;
+  --accent: #5cc4a0; --accent-ink: #08130e; --accent-soft: #1d3a2f;
+  --good: #6fd08a; --good-soft: #183323; --warn: #e7b65a; --warn-soft: #3a2e16;
+  --bad: #f08a7c; --bad-soft: #3d1f1b; --info: #8db8ea; --info-soft: #1b2b40;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.3rem; font-weight: 700; }
+h3 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0; }
+a { color: var(--accent); }
+.muted { color: var(--muted); }
+.small { font-size: 0.85rem; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+
+header.top { background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+header.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; padding-block: 12px 0; }
+.brand { display: flex; align-items: baseline; gap: 10px; flex: 1 1 auto; min-width: 0; }
+.brand .sub { color: var(--muted); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+nav.tabs { display: flex; gap: 2px; overflow-x: auto; width: 100%; scrollbar-width: none; }
+nav.tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 12px; font: 600 0.92rem var(--body); color: var(--muted); cursor: pointer; white-space: nowrap; }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+nav.tabs .count { font-family: var(--mono); font-size: 0.75rem; background: var(--sunk); border-radius: 99px; padding: 1px 7px; margin-left: 4px; }
+
+main .wrap { padding-block: 20px 60px; display: grid; gap: 20px; }
+section.panel { display: grid; gap: 18px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.between { justify-content: space-between; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field > span { font-size: 0.82rem; font-weight: 600; color: var(--muted); }
+input[type="text"], input[type="number"], input[type="url"], input[type="date"], select, textarea {
+  width: 100%; font: 400 0.95rem var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; min-width: 0;
+}
+textarea { min-height: 70px; resize: vertical; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 0.92rem; cursor: pointer; }
+.check input { width: 17px; height: 17px; accent-color: var(--accent); }
+
+.btn { font: 600 0.9rem var(--body); border-radius: 6px; padding: 8px 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { color: var(--bad); }
+.btn.sm { padding: 5px 10px; font-size: 0.82rem; }
+.btn.ghost { border-color: transparent; background: none; }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 99px; font-size: 0.8rem; font-weight: 600; background: var(--sunk); color: var(--ink); white-space: nowrap; }
+.chip button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0; }
+.chip.good { background: var(--good-soft); color: var(--good); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.chip.info { background: var(--info-soft); color: var(--info); }
+.chip.accent { background: var(--accent-soft); color: var(--accent); }
+
+.banner { background: var(--info-soft); color: var(--ink); border-radius: var(--r); padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.banner p { flex: 1 1 280px; }
+
+/* property cards */
+.props { display: grid; gap: 14px; }
+.prop { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); display: grid; min-width: 0; }
+.prop .head { padding: 14px 16px; display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; align-items: start; }
+.prop .addr { font-family: var(--display); font-weight: 700; font-size: 1.1rem; }
+.prop .facts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.88rem; color: var(--muted); }
+.prop .facts b { color: var(--ink); font-weight: 600; }
+.prop .score { text-align: right; }
+.prop .score .big { font-family: var(--mono); font-size: 1.5rem; font-weight: 600; line-height: 1; }
+.prop .body { padding: 0 16px 14px; display: grid; gap: 12px; }
+.prop .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.prop details { border-top: 1px solid var(--line); }
+.prop summary { cursor: pointer; padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: var(--accent); }
+.prop .edit { padding: 4px 16px 16px; display: grid; gap: 14px; }
+.tier-priority { border-left: 4px solid var(--accent); }
+.tier-downgraded, .tier-outside { opacity: 0.78; }
+
+/* band ruler */
+.ruler { display: grid; gap: 6px; }
+.ruler .bar { position: relative; height: 10px; margin: 12px 0 4px; background: var(--sunk); border-radius: 3px; }
+.ruler .legend { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 0.78rem; color: var(--muted); }
+.ruler .legend b { color: var(--ink); font-weight: 600; }
+.ruler .seg { position: absolute; top: 0; bottom: 0; }
+.ruler .tick { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--muted); }
+.ruler .tick.ceil { background: var(--bad); width: 2px; top: -7px; bottom: -7px; }
+.ruler .pin { position: absolute; top: -9px; width: 0; height: 0; margin-left: -7px; border: 7px solid transparent; border-top: 11px solid var(--ink); border-bottom: 0; }
+.ruler .verdict { font-size: 0.88rem; }
+
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+td.num, th.num { text-align: right; }
+
+.links { display: grid; gap: 8px; }
+.linkrow { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 6px 14px; padding: 8px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+.linkrow:last-child { border-bottom: 0; }
+.linkrow .what { font-weight: 600; }
+.linkrow .go { display: flex; flex-wrap: wrap; gap: 6px 12px; min-width: 0; }
+@media (max-width: 560px) { .linkrow { grid-template-columns: 1fr; } }
+
+.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+pre.report { white-space: pre-wrap; word-break: break-word; background: var(--sunk); border-radius: 6px; padding: 14px; font: 0.85rem/1.55 var(--mono); margin: 0; max-height: 520px; overflow: auto; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; z-index: 20; }
+.confirm { background: var(--bad-soft); border-radius: 6px; padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.empty { text-align: center; padding: 30px 16px; color: var(--muted); display: grid; gap: 10px; justify-items: center; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <h1>Property Watch</h1>
+      <span class="sub" id="briefName"></span>
+    </div>
+    <div class="row">
+      <button class="btn sm" id="exportBtn" type="button">Export backup</button>
+      <label class="btn sm" for="importFile">Import</label>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+    <nav class="tabs" role="tablist" id="tabs">
+      <button role="tab" data-tab="brief" type="button">Brief</button>
+      <button role="tab" data-tab="search" type="button">Search</button>
+      <button role="tab" data-tab="props" type="button">Properties<span class="count" id="propCount">0</span></button>
+      <button role="tab" data-tab="run" type="button">Watch run</button>
+      <button role="tab" data-tab="report" type="button">Report</button>
+    </nav>
+  </div>
+</header>
+
+<main><div class="wrap" id="app"></div></main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------- utilities ---------- */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uid = () => Math.random().toString(36).slice(2, 10);
+const today = () => new Date().toISOString().slice(0, 10);
+const clone = (o) => JSON.parse(JSON.stringify(o));
+
+/* "$1.12m", "990k", "1,150,000", "915-930k" (first number) -> dollars */
+function parseMoney(v) {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "number") return isFinite(v) ? v : null;
+  const s = String(v).toLowerCase().replace(/[$,\s]/g, "");
+  const m = s.match(/(\d+(?:\.\d+)?)(m|k)?/);
+  if (!m) return null;
+  let n = parseFloat(m[1]);
+  if (m[2] === "m") n *= 1e6; else if (m[2] === "k") n *= 1e3;
+  else if (n < 10) n *= 1e6;          /* "1.12" read as millions */
+  else if (n < 10000) n *= 1e3;       /* "990" read as thousands */
+  return Math.round(n);
+}
+/* range like "$1.12-1.13m" or "915-930k" -> [low, high] */
+function parseRange(v) {
+  if (!v) return [null, null];
+  const s = String(v).toLowerCase().replace(/[$,\s]/g, "").replace(/to/g, "-");
+  const parts = s.split(/[-–]/).filter(Boolean);
+  if (parts.length < 2) { const n = parseMoney(s); return [n, n]; }
+  const unit = (parts[1].match(/[mk]$/) || [""])[0];
+  const lo = parseMoney(/[mk]$/.test(parts[0]) ? parts[0] : parts[0] + unit);
+  const hi = parseMoney(parts[1]);
+  return [lo, hi];
+}
+function fmt(n) {
+  if (n === null || n === undefined || !isFinite(n)) return "—";
+  if (n >= 1e6) return "$" + (n / 1e6).toFixed(n % 1e4 === 0 ? 2 : 3).replace(/0+$/, "").replace(/\.$/, "") + "m";
+  return "$" + Math.round(n / 1e3) + "k";
+}
+const STATES = ["QLD", "NSW", "VIC", "SA", "WA", "TAS", "NT", "ACT"];
+function parseSuburb(s) {
+  const m = String(s).trim().match(/^(.*?)[,\s]+(QLD|NSW|VIC|SA|WA|TAS|NT|ACT)\s*(\d{4})?$/i);
+  if (!m) return { name: String(s).trim(), state: "", pc: "" };
+  return { name: m[1].trim(), state: m[2].toUpperCase(), pc: m[3] || "" };
+}
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+/* ---------- storage (per-browser) ---------- */
+const KEY = "property-watch.v1";
+function load() { try { const raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : null; } catch { return null; } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage blocked: session-only */ } }
+let toastTimer;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2600); }
+
+/* ---------- model ---------- */
+const PRESETS = {
+  "Brisbane north / Moreton Bay": ["Griffin QLD 4503", "Murrumba Downs QLD 4503", "Mango Hill QLD 4509", "North Lakes QLD 4509", "Narangba QLD 4504", "Burpengary QLD 4505", "Morayfield QLD 4506", "Deception Bay QLD 4508", "Newport QLD 4020", "Scarborough QLD 4020", "Margate QLD 4019", "Kippa-Ring QLD 4021", "Rothwell QLD 4022"],
+};
+const LEAD_TYPES = { mainstream: "Mainstream listing", auction: "Auction", mortgagee: "Mortgagee sale", receiver: "Receiver / liquidator", deceased: "Deceased estate", offmarket: "Off-market / coming soon", stale: "Stale / price reduced", distressed: "Other distressed", other: "Other lead" };
+const STATUSES = ["Active", "Under offer", "Under contract", "Sold", "Withdrawn", "Relisted", "Off-market", "Unknown"];
+const TIERS = { priority: "Priority", watch: "Watchlist", candidate: "New candidate", downgraded: "Downgraded", outside: "Outside strategy" };
+const DD_ITEMS = [
+  ["flood", "Flood overlay checked (current and future planning maps)"],
+  ["insurance", "Insurance quote for the actual address"],
+  ["bp", "Building and pest inspection"],
+  ["pool", "Pool safety certificate (or pool buildability confirmed)"],
+  ["shed", "Shed approval and power supply / electrical capacity"],
+  ["easement", "Easements, sewer lines and overland flow paths"],
+  ["title", "Title search, zoning and council overlays"],
+  ["comps", "At least 3 comparable sales from the last 6 months"],
+  ["contract", "Contract conditions set (finance, B&P, DD period)"],
+];
+const blankBrief = () => ({
+  name: "", ceiling: "", preferredMax: "", beds: 4, baths: 2, landMin: 700, landMax: "",
+  pool: "buildable", access: true, shed: true, solar: true, battery: false, rain: true,
+  trainKm: 5, school: "", schoolKm: 5, mustHaves: "", suburbs: [], includeUnderOffer: false,
+  goal: "",
+});
+const blankProp = () => ({
+  id: uid(), added: today(), address: "", suburb: "", tier: "candidate", status: "Active", lead: "mainstream",
+  price: "", beds: "", baths: "", cars: "", land: "", pool: "unknown", access: "unknown", shed: "unknown",
+  solar: false, battery: false, rain: false, trainKm: "", schoolKm: "", dom: "",
+  bands: { open: "", target: "", comfortable: "", limit: "", walk: "" },
+  flood: "", dd: {}, comps: [], sources: [], notes: "", verified: true, history: [],
+});
+
+function exampleState() {
+  const b = Object.assign(blankBrief(), {
+    name: "Example brief: family home, keep current place as a rental",
+    goal: "Buy the next family home well below the ceiling to keep borrowing capacity for the next investment.",
+    ceiling: "1200000", preferredMax: "1050000", beds: 4, baths: 2, landMin: 700, landMax: 1000,
+    pool: "buildable", access: true, shed: true, solar: true, battery: true, rain: true, trainKm: 5,
+    school: "Preferred school", schoolKm: 6,
+    mustHaves: "Powered shed or workshop suitable for a home studio. Side or rear access for a trailer.",
+    suburbs: PRESETS["Brisbane north / Moreton Bay"].slice(0, 6),
+  });
+  const p1 = Object.assign(blankProp(), {
+    address: "Example A (sample data)", suburb: "Murrumba Downs", tier: "priority", status: "Active",
+    price: "$1.12-1.13m", beds: 4, baths: 2, cars: 2, land: 1047, pool: "yes", access: "yes", shed: "powered",
+    solar: true, rain: true, trainKm: 2.5, schoolKm: 4, dom: 21,
+    bands: { open: "1120000", target: "1150000", comfortable: "1160000", limit: "1170000", walk: "1200000" },
+    flood: "Not affected on current map; inside future planning flood area. Get an insurance quote.",
+    dd: { flood: true, comps: true }, notes: "Sample record to show how bands work. Delete when you start.",
+    comps: [{ addr: "Comparable 1", price: "1150000", date: "", land: "980" }, { addr: "Comparable 2", price: "1105000", date: "", land: "850" }],
+  });
+  const p2 = Object.assign(blankProp(), {
+    address: "Example B (sample data)", suburb: "Morayfield", tier: "priority", status: "Active",
+    price: "Offers over $899k", beds: 4, baths: 2, cars: 2, land: 763, pool: "yes", access: "yes", shed: "unpowered",
+    solar: true, trainKm: 3, dom: 64,
+    bands: { open: "900000", target: "930000", comfortable: "950000", limit: "970000", walk: "980000" },
+    notes: "Sample record. Long days on market suggests room to negotiate.",
+  });
+  const p3 = Object.assign(blankProp(), {
+    address: "Example C (sample data)", suburb: "Narangba", tier: "watch", status: "Under contract", lead: "mainstream",
+    price: "$1.08m", beds: 5, land: 820, pool: "no", access: "unknown", shed: "none",
+    notes: "Sample record. Watch for the contract falling over.",
+  });
+  return { v: 1, example: true, brief: b, props: [p1, p2, p3], runs: [], tab: "brief" };
+}
+
+let state = load() || exampleState();
+if (!state.props) state.props = [];
+if (!state.runs) state.runs = [];
+
+/* ---------- scoring against the brief ---------- */
+function priceOf(p) { const [lo, hi] = parseRange(p.price); return lo ?? hi; }
+function assess(p, b = state.brief) {
+  const flags = [], pros = [];
+  let got = 0, max = 0;
+  const add = (w, ok, label, partial) => { max += w; if (ok) { got += w; pros.push(label); } else if (partial) { got += w / 2; } };
+  const price = priceOf(p), ceiling = parseMoney(b.ceiling), pref = parseMoney(b.preferredMax);
+  const walk = parseMoney(p.bands.walk), limit = parseMoney(p.bands.limit);
+  if (ceiling && price && price > ceiling) flags.push("Guide above ceiling");
+  if (ceiling && limit && limit > ceiling) flags.push("Your limit is above the ceiling");
+  if (b.beds && p.beds !== "" && +p.beds < +b.beds) flags.push(`Only ${p.beds} bed`);
+  if (b.landMin && p.land !== "" && +p.land < +b.landMin) flags.push(`Land ${p.land} m² under ${b.landMin}`);
+  if (b.pool === "required" && p.pool !== "yes") flags.push("No pool");
+  if (b.pool === "buildable" && p.pool === "no") flags.push("No pool and not buildable");
+  if (["Sold", "Withdrawn"].includes(p.status)) flags.push(p.status);
+  if (!p.verified) flags.push("Unverified lead");
+
+  if (pref) add(3, price && price <= pref, "Under preferred spend", price && ceiling && price <= ceiling);
+  if (b.beds) add(2, p.beds !== "" && +p.beds >= +b.beds, `${p.beds}+ bed`);
+  if (b.landMin) add(3, p.land !== "" && +p.land >= +b.landMin && (!b.landMax || +p.land <= +b.landMax * 1.6), `${p.land} m²`);
+  if (b.pool !== "none") add(2, p.pool === "yes", "Pool", p.pool === "buildable" && b.pool !== "required");
+  if (b.access) add(2, p.access === "yes", "Side/rear access");
+  if (b.shed) add(3, p.shed === "powered", "Powered shed", p.shed === "unpowered");
+  if (b.solar) add(1, !!p.solar, "Solar");
+  if (b.battery) add(1, !!p.battery, "Battery");
+  if (b.rain) add(1, !!p.rain, "Rainwater");
+  if (b.trainKm) add(1, p.trainKm !== "" && +p.trainKm <= +b.trainKm, "Near train");
+  if (b.school && b.schoolKm) add(1, p.schoolKm !== "" && +p.schoolKm <= +b.schoolKm, "Near " + b.school);
+  const score = max ? Math.round((got / max) * 100) : 0;
+  return { score, flags, pros, price, walk };
+}
+
+/* where a price sits against the negotiation bands */
+function bandVerdict(p, price) {
+  const B = Object.fromEntries(Object.entries(p.bands).map(([k, v]) => [k, parseMoney(v)]));
+  const ceiling = parseMoney(state.brief.ceiling);
+  if (!price) return { tone: "info", text: "No price guide recorded. Use comparable sales to set a value." };
+  if (!B.target && !B.limit && !B.walk) return { tone: "info", text: "No bands set yet. Set a target, limit and walk-away before you inspect." };
+  const walk = B.walk ?? ceiling;
+  if (walk && price >= walk) return { tone: "bad", text: `Guide ${fmt(price)} is at or past walk-away (${fmt(walk)}).` };
+  if (ceiling && price > ceiling) return { tone: "bad", text: `Guide ${fmt(price)} is above your ceiling.` };
+  if (B.limit && price > B.limit) return { tone: "bad", text: `Guide ${fmt(price)} is above your limit (${fmt(B.limit)}). Only proceed if the vendor moves.` };
+  if (B.comfortable && price > B.comfortable) return { tone: "warn", text: `Guide ${fmt(price)} is between comfortable and limit. Proceed only if due diligence is clean.` };
+  if (B.target && price > B.target) return { tone: "warn", text: `Guide ${fmt(price)} is above target but within comfortable.` };
+  return { tone: "good", text: `Guide ${fmt(price)} is at or under target${B.target ? " (" + fmt(B.target) + ")" : ""}.` };
+}
+
+function rulerHTML(p, price) {
+  const B = p.bands, pts = [["open", "Open"], ["target", "Target"], ["comfortable", "Comf."], ["limit", "Limit"], ["walk", "Walk"]]
+    .map(([k, l]) => [l, parseMoney(B[k])]).filter(x => x[1]);
+  const ceiling = parseMoney(state.brief.ceiling);
+  if (pts.length < 2) return "";
+  const vals = pts.map(x => x[1]).concat(price ? [price] : []);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = (hi - lo) * 0.06 || 20000; lo -= pad; hi += pad;
+  const x = (v) => (((v - lo) / (hi - lo)) * 100).toFixed(2);
+  const get = (k) => parseMoney(B[k]);
+  const seg = (a, b, cls) => (a && b && b > a) ? `<span class="seg" style="left:${x(a)}%;width:${(x(b) - x(a)).toFixed(2)}%;background:var(--${cls})"></span>` : "";
+  let h = `<div class="bar" role="img" aria-label="Guide price against negotiation bands">`;
+  h += seg(get("open") ?? lo, get("target"), "good-soft");
+  h += seg(get("target"), get("comfortable") ?? get("limit"), "warn-soft");
+  h += seg(get("comfortable"), get("limit"), "warn-soft");
+  h += seg(get("limit"), get("walk") ?? (ceiling && ceiling <= hi ? ceiling : null), "bad-soft");
+  pts.forEach(([l, v]) => { h += `<span class="tick" style="left:${x(v)}%" title="${l} ${fmt(v)}"></span>`; });
+  if (ceiling && ceiling < hi && !pts.some(([, v]) => v === ceiling)) h += `<span class="tick ceil" style="left:${x(ceiling)}%" title="Ceiling ${fmt(ceiling)}"></span>`;
+  if (price) h += `<span class="pin" style="left:${x(price)}%" title="Guide ${fmt(price)}"></span>`;
+  h += `</div><div class="legend num">${pts.map(([l, v]) => `<span>${l} <b>${fmt(v)}</b></span>`).join("")}${price ? `<span>▼ Guide <b>${fmt(price)}</b></span>` : ""}</div>`;
+  return h;
+}
+
+/* ---------- search links ---------- */
+function searchLinks(b) {
+  const subs = b.suburbs.map(parseSuburb);
+  const min = 0, max = parseMoney(b.ceiling) || "";
+  const beds = b.beds || 1, land = b.landMin || "";
+  const reaSubs = subs.map(s => [s.name, s.state, s.pc].filter(Boolean).join(" ").toLowerCase().replace(/ (qld|nsw|vic|sa|wa|tas|nt|act)\b/, ",$&").replace(/ /g, "+")).join(";+");
+  const reaPrice = max ? `-between-${min}-${max}` : "";
+  const rea = `https://www.realestate.com.au/buy/property-house-with-${beds}-bedrooms${reaPrice}-in-${reaSubs}/list-1?${land ? "landSize=" + land + "-any&" : ""}source=refinement`;
+  const reaSold = `https://www.realestate.com.au/sold/property-house-with-${beds}-bedrooms-in-${reaSubs}/list-1`;
+  const domSubs = subs.map(s => slug([s.name, s.state, s.pc].filter(Boolean).join(" "))).join(",");
+  const dq = new URLSearchParams({ suburb: domSubs, ptype: "house", bedrooms: beds + "-any" });
+  if (max) dq.set("price", `0-${max}`);
+  if (land) { dq.set("landsize", land + "-any"); dq.set("landsizeunit", "m2"); }
+  if (!b.includeUnderOffer) dq.set("excludeunderoffer", "1");
+  const domain = `https://www.domain.com.au/sale/?${dq.toString().replace(/%2C/g, ",")}`;
+  const ds = new URLSearchParams({ suburb: domSubs, ptype: "house", bedrooms: beds + "-any" });
+  const domainSold = `https://www.domain.com.au/sold-listings/?${ds.toString().replace(/%2C/g, ",")}`;
+  const g = (q) => "https://www.google.com/search?q=" + encodeURIComponent(q);
+  /* keep each OR-group to 6 suburbs so the query stays usable */
+  const groups = [];
+  for (let i = 0; i < subs.length; i += 6) groups.push(subs.slice(i, i + 6));
+  const area = (grp) => "(" + grp.map(s => `"${s.name}"`).join(" OR ") + ")" + (grp[0]?.state ? " " + grp[0].state : "");
+  const leads = [
+    ["Mortgagee sales", `("mortgagee sale" OR "mortgagee in possession" OR "bank instructions")`],
+    ["Receivers and liquidators", `("receivers" OR "liquidator" OR "controller appointed" OR "court ordered sale")`],
+    ["Deceased estates", `("deceased estate" OR "executor sale" OR "estate sale")`],
+    ["Auctions", `("auction" house) -"sold at auction"`],
+    ["Off-market and coming soon", `("off market" OR "off-market" OR "coming soon" OR "pre-market" OR "expressions of interest")`],
+    ["Stale and reduced", `("price reduced" OR "price drop" OR "motivated vendor" OR "must be sold" OR "relisted" OR "back on market")`],
+  ];
+  const featureTerms = [b.shed && '"powered shed"', b.pool !== "none" && "pool", b.access && '"side access"'].filter(Boolean).join(" ");
+  return { rea, reaSold, domain, domainSold, g, groups, area, leads, featureTerms, subs };
+}
+
+/* ---------- rendering ---------- */
+const app = $("#app");
+function setTab(t) { state.tab = t; save(); render(); window.scrollTo(0, 0); }
+$("#tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) setTab(b.dataset.tab); });
+
+function render() {
+  document.querySelectorAll("#tabs [data-tab]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === state.tab)));
+  $("#propCount").textContent = state.props.length;
+  $("#briefName").textContent = state.brief.name || "";
+  const views = { brief: renderBrief, search: renderSearch, props: renderProps, run: renderRun, report: renderReport };
+  app.innerHTML = (state.example ? `<div class="banner"><p><b>You're looking at example data.</b> The brief and the three sample properties show how the tool works. Start fresh to enter your own suburbs, budget and properties.</p><div class="row"><button class="btn primary sm" type="button" data-act="fresh">Start fresh</button><button class="btn sm" type="button" data-act="keep">Keep and edit</button></div></div>` : "") + (views[state.tab] || renderBrief)();
+}
+
+function opt(list, val) { return list.map(([v, l]) => `<option value="${esc(v)}"${String(v) === String(val) ? " selected" : ""}>${esc(l)}</option>`).join(""); }
+
+function renderBrief() {
+  const b = state.brief;
+  const suburbChips = b.suburbs.map((s, i) => `<span class="chip accent">${esc(s)}<button type="button" aria-label="Remove ${esc(s)}" data-act="rmsub" data-i="${i}">×</button></span>`).join("") || `<span class="muted small">No suburbs yet. Add the corridor you want to search.</span>`;
+  return `<section class="panel">
+  <div class="card">
+    <div><h2>Buyer's brief</h2><p class="muted small">Set the brief once. Every property is scored against it and every search link is built from it.</p></div>
+    <div class="grid2">
+      <label class="field"><span>Brief name</span><input id="b-name" type="text" data-b="name" value="${esc(b.name)}" placeholder="e.g. Next family home, northside"></label>
+      <label class="field"><span>Goal</span><input id="b-goal" type="text" data-b="goal" value="${esc(b.goal)}" placeholder="e.g. Buy below ceiling to keep capacity for the next purchase"></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Budget</h3>
+    <div class="grid3">
+      <label class="field"><span>Hard ceiling (AUD)</span><input id="b-ceiling" type="text" inputmode="decimal" data-b="ceiling" data-money value="${esc(b.ceiling)}" placeholder="1,200,000"></label>
+      <label class="field"><span>Preferred maximum</span><input id="b-pref" type="text" inputmode="decimal" data-b="preferredMax" data-money value="${esc(b.preferredMax)}" placeholder="1,050,000"></label>
+    </div>
+    <p class="small muted">Ceiling: ${fmt(parseMoney(b.ceiling))}. Preferred: ${fmt(parseMoney(b.preferredMax))}. Spending under the preferred figure keeps borrowing capacity free; it scores higher.</p>
+  </div>
+
+  <div class="card">
+    <h3>Property must-haves</h3>
+    <div class="grid3">
+      <label class="field"><span>Bedrooms (min)</span><input id="b-beds" type="number" min="1" data-b="beds" value="${esc(b.beds)}"></label>
+      <label class="field"><span>Bathrooms (min)</span><input id="b-baths" type="number" min="1" data-b="baths" value="${esc(b.baths)}"></label>
+      <label class="field"><span>Usable land min (m²)</span><input id="b-landmin" type="number" min="0" step="10" data-b="landMin" value="${esc(b.landMin)}"></label>
+      <label class="field"><span>Usable land target max (m²)</span><input id="b-landmax" type="number" min="0" step="10" data-b="landMax" value="${esc(b.landMax)}" placeholder="optional"></label>
+      <label class="field"><span>Pool</span><select id="b-pool" data-b="pool">${opt([["required", "Required"], ["buildable", "Preferred, or room to build one"], ["preferred", "Nice to have"], ["none", "Not needed"]], b.pool)}</select></label>
+      <label class="field"><span>Train station within (km)</span><input id="b-train" type="number" min="0" step="0.5" data-b="trainKm" value="${esc(b.trainKm)}"></label>
+      <label class="field"><span>School or anchor</span><input id="b-school" type="text" data-b="school" value="${esc(b.school)}" placeholder="e.g. a school, workplace"></label>
+      <label class="field"><span>Within (km)</span><input id="b-schoolkm" type="number" min="0" step="0.5" data-b="schoolKm" value="${esc(b.schoolKm)}"></label>
+    </div>
+    <div class="row">
+      <label class="check"><input id="b-access" type="checkbox" data-b="access"${b.access ? " checked" : ""}> Side or rear access</label>
+      <label class="check"><input id="b-shed" type="checkbox" data-b="shed"${b.shed ? " checked" : ""}> Powered shed or workshop</label>
+      <label class="check"><input id="b-solar" type="checkbox" data-b="solar"${b.solar ? " checked" : ""}> Solar</label>
+      <label class="check"><input id="b-battery" type="checkbox" data-b="battery"${b.battery ? " checked" : ""}> Battery</label>
+      <label class="check"><input id="b-rain" type="checkbox" data-b="rain"${b.rain ? " checked" : ""}> Rainwater tank</label>
+    </div>
+    <label class="field"><span>Other must-haves and deal-breakers</span><textarea id="b-must" data-b="mustHaves" placeholder="e.g. Workshop for a home studio. No battle-axe blocks.">${esc(b.mustHaves)}</textarea></label>
+  </div>
+
+  <div class="card">
+    <div class="row between"><h3>Search corridor</h3><span class="small muted">${b.suburbs.length} suburb${b.suburbs.length === 1 ? "" : "s"}</span></div>
+    <div class="row">${suburbChips}</div>
+    <form class="row" id="subForm">
+      <input id="subInput" type="text" placeholder="Suburb, state and postcode, e.g. Griffin QLD 4503" style="flex:1 1 260px">
+      <button class="btn" type="submit">Add suburb</button>
+    </form>
+    <div class="row small"><span class="muted">Quick add:</span>${Object.keys(PRESETS).map(k => `<button class="btn sm" type="button" data-act="preset" data-k="${esc(k)}">${esc(k)}</button>`).join("")}${b.suburbs.length ? `<button class="btn sm ghost danger" type="button" data-act="clearsubs">Clear all</button>` : ""}</div>
+    <p class="small muted">Include the postcode so listing-site links resolve to the right suburb.</p>
+  </div>
+
+  <div class="card">
+    <h3>How this tool works</h3>
+    <ul class="rules">
+      <li>Set target, limit and walk-away for each property <b>before</b> you inspect, from comparable sales, not the asking price.</li>
+      <li>A guide above your walk-away is a pass unless the vendor moves. The tool flags it red.</li>
+      <li>Use public sources only: listing portals, auction results, public notices and agent sites.</li>
+      <li>Off-market, distressed and paid-data-style claims stay marked <b>unverified</b> until you confirm them from a public source.</li>
+      <li>Check flood on the current and future council maps, and get an insurance quote for the actual address.</li>
+      <li>This tool only records and compares. It does not contact agents or make offers.</li>
+    </ul>
+  </div>
+</section>`;
+}
+
+function renderSearch() {
+  const b = state.brief;
+  if (!b.suburbs.length) return `<section class="panel"><div class="card empty"><h2>No suburbs in your brief</h2><p>Add the suburbs you want to search and the links will appear here.</p><button class="btn primary" type="button" data-tab-go="brief">Open the brief</button></div></section>`;
+  const L = searchLinks(b);
+  const a = (href, text) => `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(text)}</a>`;
+  const leadRows = L.leads.map(([label, q]) => `<div class="linkrow"><span class="what">${esc(label)}</span><span class="go">${L.groups.map((grp, i) => a(L.g(`${q} ${L.area(grp)}`), L.groups.length > 1 ? `Group ${i + 1}: ${grp.map(s => s.name).join(", ")}` : "Search")).join("")}</span></div>`).join("");
+  const perSuburb = L.subs.map(s => `<tr><td>${esc(s.name)} <span class="muted small">${esc(s.pc)}</span></td>
+    <td>${a(L.g(`"${s.name}" ${s.state} house ${L.featureTerms} for sale`), "Feature search")}</td>
+    <td>${a(L.g(`"${s.name}" ${s.state} flood map council`), "Flood map")}</td>
+    <td>${a(L.g(`"${s.name}" ${s.state} auction results`), "Auction results")}</td></tr>`).join("");
+  const missingPc = L.subs.filter(s => !s.pc).length;
+  return `<section class="panel">
+  <div class="card">
+    <div><h2>Listing searches</h2><p class="muted small">Built from your brief: houses, ${b.beds}+ bed${parseMoney(b.ceiling) ? ", up to " + fmt(parseMoney(b.ceiling)) : ""}${b.landMin ? ", " + b.landMin + " m²+ land" : ""}, ${L.subs.length} suburbs. Each opens in a new tab.</p></div>
+    ${missingPc ? `<p class="chip warn">${missingPc} suburb${missingPc > 1 ? "s have" : " has"} no postcode, so portal links may not match.</p>` : ""}
+    <div class="links">
+      <div class="linkrow"><span class="what">For sale</span><span class="go">${a(L.rea, "realestate.com.au")} ${a(L.domain, "Domain")}</span></div>
+      <div class="linkrow"><span class="what">Sold comparables</span><span class="go">${a(L.reaSold, "realestate.com.au sold")} ${a(L.domainSold, "Domain sold")}</span></div>
+      <div class="linkrow"><span class="what">Flood</span><span class="go">${a("https://floodcheck.information.qld.gov.au/", "Queensland FloodCheck")} <span class="small muted">Also check your council's flood overlay for each address.</span></span></div>
+    </div>
+    <label class="check"><input id="s-uo" type="checkbox" data-b="includeUnderOffer"${b.includeUnderOffer ? " checked" : ""}> Include under-offer listings (useful for watching fall-overs)</label>
+  </div>
+
+  <div class="card">
+    <div><h2>Lead searches</h2><p class="muted small">Public web searches for mortgagee, estate, auction, off-market and stale listings in your corridor. Record anything you find as a property with its lead type; leave it unverified until a public listing confirms it.</p></div>
+    <div class="links">${leadRows}</div>
+  </div>
+
+  <div class="card">
+    <h2>By suburb</h2>
+    <div class="tablewrap"><table><thead><tr><th>Suburb</th><th>Listings with your features</th><th>Flood</th><th>Recent results</th></tr></thead><tbody>${perSuburb}</tbody></table></div>
+  </div>
+</section>`;
+}
+
+function propCard(p) {
+  const A = assess(p), v = bandVerdict(p, A.price);
+  const scoreTone = A.flags.length ? "bad" : A.score >= 75 ? "good" : A.score >= 50 ? "warn" : "info";
+  const statusTone = { "Active": "good", "Relisted": "good", "Under offer": "warn", "Under contract": "warn", "Sold": "bad", "Withdrawn": "bad" }[p.status] || "info";
+  const facts = [
+    p.price && `<span><b>${esc(p.price)}</b></span>`,
+    p.beds !== "" && `<span><b>${esc(p.beds)}</b> bed</span>`, p.baths !== "" && `<span><b>${esc(p.baths)}</b> bath</span>`, p.cars !== "" && `<span><b>${esc(p.cars)}</b> car</span>`,
+    p.land !== "" && `<span><b>${esc(p.land)}</b> m²</span>`, p.dom !== "" && `<span><b>${esc(p.dom)}</b> days listed</span>`,
+  ].filter(Boolean).join("");
+  const dd = DD_ITEMS.map(([k, l]) => `<label class="check small"><input id="dd-${p.id}-${k}" type="checkbox" data-pid="${p.id}" data-dd="${k}"${p.dd[k] ? " checked" : ""}> ${esc(l)}</label>`).join("");
+  const ddDone = DD_ITEMS.filter(([k]) => p.dd[k]).length;
+  const comps = p.comps.map((c, i) => `<tr><td><input id="c-${p.id}-${i}-a" type="text" data-pid="${p.id}" data-comp="${i}" data-cf="addr" value="${esc(c.addr)}" aria-label="Comparable address"></td>
+    <td><input id="c-${p.id}-${i}-p" type="text" data-pid="${p.id}" data-comp="${i}" data-cf="price" value="${esc(c.price)}" aria-label="Sold price"></td>
+    <td><input id="c-${p.id}-${i}-d" type="date" data-pid="${p.id}" data-comp="${i}" data-cf="date" value="${esc(c.date)}" aria-label="Sold date"></td>
+    <td><input id="c-${p.id}-${i}-l" type="number" data-pid="${p.id}" data-comp="${i}" data-cf="land" value="${esc(c.land)}" aria-label="Land m²"></td>
+    <td><button class="btn sm ghost danger" type="button" data-act="rmcomp" data-pid="${p.id}" data-i="${i}" aria-label="Remove comparable">×</button></td></tr>`).join("");
+  const compPrices = p.comps.map(c => parseMoney(c.price)).filter(Boolean).sort((a, b) => a - b);
+  const median = compPrices.length ? compPrices[Math.floor((compPrices.length - 1) / 2)] / 2 + compPrices[Math.ceil((compPrices.length - 1) / 2)] / 2 : null;
+  const f = (k, label, type = "text", extra = "") => `<label class="field"><span>${label}</span><input id="p-${p.id}-${k}" type="${type}" data-pid="${p.id}" data-pf="${k}" value="${esc(p[k])}" ${extra}></label>`;
+  const bf = (k, label) => `<label class="field"><span>${label}</span><input id="p-${p.id}-b-${k}" type="text" inputmode="decimal" data-pid="${p.id}" data-band="${k}" value="${esc(p.bands[k])}" placeholder="—"></label>`;
+  const sel = (k, label, list) => `<label class="field"><span>${label}</span><select id="p-${p.id}-${k}" data-pid="${p.id}" data-pf="${k}">${opt(list, p[k])}</select></label>`;
+  const hist = p.history.slice(-6).reverse().map(h => `<li><span class="num small">${esc(h.date)}</span> ${esc(h.field)}: ${esc(h.from || "—")} → <b>${esc(h.to || "—")}</b>${h.source ? ` · <a href="${esc(h.source)}" target="_blank" rel="noopener">source</a>` : ""}</li>`).join("");
+  const g = (q) => "https://www.google.com/search?q=" + encodeURIComponent(q);
+  const where = [p.address, p.suburb].filter(Boolean).join(", ");
+  return `<article class="prop tier-${p.tier}" id="prop-${p.id}">
+  <div class="head">
+    <div style="display:grid;gap:6px;min-width:0">
+      <div class="row" style="gap:6px"><span class="chip ${p.tier === "priority" ? "accent" : ""}">${esc(TIERS[p.tier])}</span><span class="chip ${statusTone}">${esc(p.status)}</span>${p.lead !== "mainstream" ? `<span class="chip info">${esc(LEAD_TYPES[p.lead])}</span>` : ""}${!p.verified ? `<span class="chip warn">Unverified</span>` : ""}</div>
+      <div class="addr">${esc(p.address || "Untitled property")}${p.suburb ? `<span class="muted" style="font-weight:500">, ${esc(p.suburb)}</span>` : ""}</div>
+      <div class="facts">${facts || `<span>Add details below</span>`}</div>
+    </div>
+    <div class="score"><div class="big" style="color:var(--${scoreTone})">${A.score}</div><div class="label">fit</div></div>
+  </div>
+  <div class="body">
+    <div class="chips">${A.flags.map(x => `<span class="chip bad">${esc(x)}</span>`).join("")}${A.pros.map(x => `<span class="chip">${esc(x)}</span>`).join("")}</div>
+    <div class="ruler">${rulerHTML(p, A.price)}<p class="verdict" style="color:var(--${v.tone === "info" ? "muted" : v.tone})">${esc(v.text)}</p></div>
+    ${p.notes ? `<p class="small">${esc(p.notes)}</p>` : ""}
+    <p class="small muted">Due diligence ${ddDone}/${DD_ITEMS.length}${median ? ` · Comparable median ${fmt(median)} (${compPrices.length})` : ""}${p.flood ? ` · Flood: ${esc(p.flood)}` : ""}</p>
+  </div>
+  <details${openCards.has(p.id) ? " open" : ""} data-card="${p.id}">
+    <summary>Edit details, bands and due diligence</summary>
+    <div class="edit">
+      <div class="grid3">
+        ${f("address", "Address")}${f("suburb", "Suburb")}
+        ${sel("tier", "Tier", Object.entries(TIERS))}${sel("status", "Status", STATUSES.map(s => [s, s]))}
+        ${sel("lead", "Lead type", Object.entries(LEAD_TYPES))}
+        ${f("price", "Price guide", "text", 'placeholder="e.g. $1.12-1.13m"')}
+        ${f("beds", "Beds", "number", 'min="0"')}${f("baths", "Baths", "number", 'min="0"')}${f("cars", "Car spaces", "number", 'min="0"')}
+        ${f("land", "Usable land m²", "number", 'min="0"')}${f("dom", "Days on market", "number", 'min="0"')}
+        ${sel("pool", "Pool", [["unknown", "Unknown"], ["yes", "Yes"], ["buildable", "No, but buildable"], ["no", "No, not buildable"]])}
+        ${sel("access", "Side/rear access", [["unknown", "Unknown"], ["yes", "Yes"], ["no", "No"]])}
+        ${sel("shed", "Shed", [["unknown", "Unknown"], ["powered", "Powered"], ["unpowered", "Unpowered"], ["none", "None"]])}
+        ${f("trainKm", "Train station km", "number", 'min="0" step="0.1"')}${f("schoolKm", (state.brief.school || "Anchor") + " km", "number", 'min="0" step="0.1"')}
+      </div>
+      <div class="row">
+        <label class="check"><input id="p-${p.id}-solar" type="checkbox" data-pid="${p.id}" data-pb="solar"${p.solar ? " checked" : ""}> Solar</label>
+        <label class="check"><input id="p-${p.id}-battery" type="checkbox" data-pid="${p.id}" data-pb="battery"${p.battery ? " checked" : ""}> Battery</label>
+        <label class="check"><input id="p-${p.id}-rain" type="checkbox" data-pid="${p.id}" data-pb="rain"${p.rain ? " checked" : ""}> Rainwater</label>
+        <label class="check"><input id="p-${p.id}-verified" type="checkbox" data-pid="${p.id}" data-pb="verified"${p.verified ? " checked" : ""}> Confirmed from a public source</label>
+      </div>
+      <div><span class="label">Negotiation bands</span><p class="small muted">Set from comparable sales. Walk-away is the price at which you stop.</p></div>
+      <div class="grid3">${bf("open", "Opening offer")}${bf("target", "Target")}${bf("comfortable", "Comfortable")}${bf("limit", "Limit")}${bf("walk", "Walk-away")}</div>
+      <div><span class="label">Comparable sales</span></div>
+      <div class="tablewrap"><table><thead><tr><th>Address</th><th>Sold price</th><th>Date</th><th>Land m²</th><th></th></tr></thead><tbody>${comps}</tbody></table></div>
+      <div><button class="btn sm" type="button" data-act="addcomp" data-pid="${p.id}">Add comparable</button></div>
+      <div><span class="label">Due diligence</span></div>
+      <div class="grid2">${dd}</div>
+      <label class="field"><span>Flood and insurance notes</span><input id="p-${p.id}-flood" type="text" data-pid="${p.id}" data-pf="flood" value="${esc(p.flood)}"></label>
+      <label class="field"><span>Source links (one per line)</span><textarea id="p-${p.id}-sources" data-pid="${p.id}" data-pf="sources">${esc(p.sources.join("\n"))}</textarea></label>
+      <label class="field"><span>Notes</span><textarea id="p-${p.id}-notes" data-pid="${p.id}" data-pf="notes">${esc(p.notes)}</textarea></label>
+      <div class="row small">${where ? `<a href="${g('"' + where + '"')}" target="_blank" rel="noopener">Search this address</a><a href="${g('"' + where + '" sold')}" target="_blank" rel="noopener">Sale history</a>` : ""}${p.sources.map((s, i) => `<a href="${esc(s)}" target="_blank" rel="noopener">Source ${i + 1}</a>`).join("")}</div>
+      ${hist ? `<div><span class="label">Recent changes</span><ul class="rules small">${hist}</ul></div>` : ""}
+      <div class="row between">
+        <span class="small muted">Added ${esc(p.added)}</span>
+        ${confirmDel === p.id
+          ? `<div class="confirm"><span>Delete this property and its history?</span><button class="btn sm danger" type="button" data-act="del" data-pid="${p.id}">Delete</button><button class="btn sm" type="button" data-act="nodel">Cancel</button></div>`
+          : `<button class="btn sm ghost danger" type="button" data-act="askdel" data-pid="${p.id}">Delete property</button>`}
+      </div>
+    </div>
+  </details>
+</article>`;
+}
+
+const openCards = new Set();
+let confirmDel = null;
+let propFilter = "all";
+function renderProps() {
+  const order = ["priority", "candidate", "watch", "downgraded", "outside"];
+  const list = state.props.filter(p => propFilter === "all" || p.tier === propFilter)
+    .sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier) || assess(b).score - assess(a).score);
+  const counts = Object.fromEntries(order.map(t => [t, state.props.filter(p => p.tier === t).length]));
+  const filters = [["all", "All", state.props.length]].concat(order.map(t => [t, TIERS[t], counts[t]])).filter(x => x[0] === "all" || x[2])
+    .map(([k, l, n]) => `<button class="btn sm${propFilter === k ? " primary" : ""}" type="button" data-act="filter" data-k="${k}">${esc(l)} <span class="num">${n}</span></button>`).join("");
+  return `<section class="panel">
+  <div class="row between"><div><h2>Properties</h2><p class="small muted">Sorted by tier, then fit to your brief. Bands show where the guide sits.</p></div>
+    <button class="btn primary" type="button" data-act="addprop">Add property</button></div>
+  <div class="row">${filters}</div>
+  <div class="props">${list.map(propCard).join("") || `<div class="card empty"><h3>No properties yet</h3><p>Add a listing you've found, or open Search for links built from your brief.</p></div>`}</div>
+</section>`;
+}
+
+/* ---------- watch run ---------- */
+let draftRun = null;
+function startRun() {
+  draftRun = { date: today(), notes: "", rows: Object.fromEntries(state.props.filter(p => !["outside"].includes(p.tier)).map(p => [p.id, { price: p.price, status: p.status, dom: p.dom, source: "", checked: false }])) };
+}
+function renderRun() {
+  const last = state.runs[state.runs.length - 1];
+  if (!draftRun) startRun();
+  state.props.forEach(p => { if (!draftRun.rows[p.id] && p.tier !== "outside") draftRun.rows[p.id] = { price: p.price, status: p.status, dom: p.dom, source: "", checked: false }; });
+  const rows = state.props.filter(p => draftRun.rows[p.id]).map(p => {
+    const r = draftRun.rows[p.id];
+    return `<tr>
+      <td><label class="check"><input id="r-${p.id}-chk" type="checkbox" data-rid="${p.id}" data-rf="checked"${r.checked ? " checked" : ""}> <span><b>${esc(p.address || "Untitled")}</b><br><span class="small muted">${esc(p.suburb)} · ${esc(TIERS[p.tier])}</span></span></label></td>
+      <td><input id="r-${p.id}-price" type="text" data-rid="${p.id}" data-rf="price" value="${esc(r.price)}" aria-label="Price guide"><span class="small muted">was ${esc(p.price || "—")}</span></td>
+      <td><select id="r-${p.id}-status" data-rid="${p.id}" data-rf="status" aria-label="Status">${opt(STATUSES.map(s => [s, s]), r.status)}</select></td>
+      <td><input id="r-${p.id}-dom" type="number" data-rid="${p.id}" data-rf="dom" value="${esc(r.dom)}" aria-label="Days on market" style="max-width:90px"></td>
+      <td><input id="r-${p.id}-src" type="url" data-rid="${p.id}" data-rf="source" value="${esc(r.source)}" placeholder="https://" aria-label="Source link"></td>
+    </tr>`;
+  }).join("");
+  const newSince = last ? state.props.filter(p => p.added > last.date).length : 0;
+  const pastRuns = state.runs.slice().reverse().map(r => `<tr><td class="num">${esc(r.date)}</td><td class="num">${r.checked}</td><td class="num">${r.changes.length}</td><td>${esc(r.notes)}</td></tr>`).join("");
+  return `<section class="panel">
+  <div class="card">
+    <div class="row between"><div><h2>Watch run</h2><p class="small muted">${last ? `Last run ${esc(last.date)}.` : "No runs yet."} Open each listing, record today's guide and status, paste the source link, and tick it off. Saving records every change against the property.</p></div>
+      <label class="field" style="max-width:170px"><span>Run date</span><input id="run-date" type="date" data-run="date" value="${esc(draftRun.date)}"></label></div>
+    ${newSince ? `<p class="chip info">${newSince} propert${newSince > 1 ? "ies" : "y"} added since the last run will be reported as new candidates.</p>` : ""}
+    <div class="tablewrap"><table><thead><tr><th>Property</th><th>Price guide</th><th>Status</th><th>Days</th><th>Source</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="muted">Add properties first.</td></tr>`}</tbody></table></div>
+    <label class="field"><span>Run notes (new leads seen, market notes)</span><textarea id="run-notes" data-run="notes">${esc(draftRun.notes)}</textarea></label>
+    <div class="row"><button class="btn primary" type="button" data-act="saverun">Save run</button><button class="btn" type="button" data-act="resetrun">Reset</button><button class="btn ghost" type="button" data-tab-go="search">Open search links</button></div>
+  </div>
+  ${pastRuns ? `<div class="card"><h3>Past runs</h3><div class="tablewrap"><table><thead><tr><th>Date</th><th class="num">Checked</th><th class="num">Changes</th><th>Notes</th></tr></thead><tbody>${pastRuns}</tbody></table></div></div>` : ""}
+</section>`;
+}
+function saveRun() {
+  const date = draftRun.date || today(), changes = [];
+  let checked = 0;
+  state.props.forEach(p => {
+    const r = draftRun.rows[p.id]; if (!r) return;
+    if (r.checked) checked++;
+    [["price", "Price"], ["status", "Status"], ["dom", "Days on market"]].forEach(([k, label]) => {
+      if (String(r[k] ?? "") !== String(p[k] ?? "")) {
+        const h = { date, field: label, from: String(p[k] ?? ""), to: String(r[k] ?? ""), source: r.source };
+        p.history.push(h); changes.push(Object.assign({ pid: p.id }, h)); p[k] = r[k];
+      }
+    });
+    if (r.source && !p.sources.includes(r.source)) p.sources.push(r.source);
+  });
+  state.runs.push({ id: uid(), date, notes: draftRun.notes, checked, changes });
+  draftRun = null; save(); toast(`Run saved: ${changes.length} change${changes.length === 1 ? "" : "s"}`);
+  setTab("report");
+}
+
+/* ---------- report ---------- */
+function buildReport() {
+  const b = state.brief, runs = state.runs, last = runs[runs.length - 1], prev = runs[runs.length - 2];
+  const L = [];
+  const name = (p) => [p.address || "Untitled", p.suburb].filter(Boolean).join(", ");
+  L.push(`PROPERTY WATCH — ${last ? last.date : today()}`);
+  if (b.name) L.push(b.name);
+  L.push(`Brief: ${b.beds}+ bed, ${b.landMin || "?"}${b.landMax ? "–" + b.landMax : "+"} m², ceiling ${fmt(parseMoney(b.ceiling))}${b.preferredMax ? ", prefer ≤ " + fmt(parseMoney(b.preferredMax)) : ""}. Corridor: ${b.suburbs.map(s => parseSuburb(s).name).join(", ") || "not set"}.`);
+  L.push("");
+  L.push(`WHAT CHANGED${prev ? " SINCE " + prev.date : ""}`);
+  if (!last) L.push("- No watch run saved yet.");
+  else if (!last.changes.length) L.push("- No price or status changes recorded.");
+  else last.changes.forEach(c => { const p = state.props.find(x => x.id === c.pid); L.push(`- ${p ? name(p) : "Removed property"}: ${c.field} ${c.from || "—"} → ${c.to || "—"}${c.source ? " (" + c.source + ")" : ""}`); });
+  L.push("");
+  L.push("PRIORITY PROPERTIES AGAINST BANDS");
+  const pri = state.props.filter(p => p.tier === "priority");
+  if (!pri.length) L.push("- None marked priority.");
+  pri.forEach(p => {
+    const A = assess(p), v = bandVerdict(p, A.price), B = p.bands;
+    const bands = [["open", "open"], ["target", "target"], ["comfortable", "comfortable"], ["limit", "limit"], ["walk", "walk"]].filter(([k]) => B[k]).map(([k, l]) => `${l} ${fmt(parseMoney(B[k]))}`).join(", ");
+    L.push(`- ${name(p)} [${p.status}] fit ${A.score}${A.flags.length ? " · flags: " + A.flags.join(", ") : ""}`);
+    if (bands) L.push(`  Bands: ${bands}`);
+    L.push(`  ${v.text}`);
+    const ddOpen = DD_ITEMS.filter(([k]) => !p.dd[k]).map(([, l]) => l.split(" (")[0]);
+    if (ddOpen.length) L.push(`  DD outstanding: ${ddOpen.slice(0, 4).join("; ")}${ddOpen.length > 4 ? "; +" + (ddOpen.length - 4) + " more" : ""}`);
+    if (p.sources[0]) L.push(`  Source: ${p.sources[p.sources.length - 1]}`);
+  });
+  L.push("");
+  L.push("NEW CANDIDATES WORTH INSPECTING");
+  const since = prev ? prev.date : null;
+  const cands = state.props.filter(p => p.tier === "candidate" || (since && p.added > since && p.tier !== "priority"))
+    .filter(p => !["Sold", "Withdrawn"].includes(p.status)).sort((a, b) => assess(b).score - assess(a).score);
+  if (!cands.length) L.push("- None recorded.");
+  cands.forEach(p => { const A = assess(p); L.push(`- ${name(p)} · ${p.price || "no guide"} · ${p.land || "?"} m² · fit ${A.score}${p.lead !== "mainstream" ? " · " + LEAD_TYPES[p.lead] : ""}${p.verified ? "" : " · UNVERIFIED"}${A.flags.length ? " · flags: " + A.flags.join(", ") : ""}${p.sources[0] ? " · " + p.sources[0] : ""}`); });
+  L.push("");
+  L.push("WATCHLIST");
+  const w = state.props.filter(p => p.tier === "watch");
+  if (!w.length) L.push("- Empty.");
+  w.forEach(p => L.push(`- ${name(p)} [${p.status}]${p.price ? " " + p.price : ""}${p.notes ? " — " + p.notes : ""}`));
+  const dg = state.props.filter(p => p.tier === "downgraded" || p.tier === "outside");
+  if (dg.length) { L.push(""); L.push("DOWNGRADED / OUTSIDE STRATEGY"); dg.forEach(p => L.push(`- ${name(p)}${p.notes ? " — " + p.notes : ""}`)); }
+  if (last && last.notes) { L.push(""); L.push("RUN NOTES"); L.push(last.notes); }
+  L.push("");
+  L.push("Public sources only. Unverified leads are marked. No agents contacted, no offers made.");
+  return L.join("\n");
+}
+function renderReport() {
+  return `<section class="panel"><div class="card">
+    <div class="row between"><div><h2>Report</h2><p class="small muted">Plain-text summary of the latest run, ready to paste into an email or message.</p></div>
+      <div class="row"><button class="btn primary" type="button" data-act="copyreport">Copy</button><button class="btn" type="button" data-act="dlreport">Save as .md</button></div></div>
+    <pre class="report" id="reportText">${esc(buildReport())}</pre>
+  </div></section>`;
+}
+
+/* ---------- export / import ---------- */
+let downloadsNS;
+const downloadsReady = (window.claude && typeof window.claude.use === "function") ? window.claude.use("downloads").then(d => (downloadsNS = d)).catch(() => null) : Promise.resolve(null);
+async function saveFile(filename, text, mime) {
+  await downloadsReady;
+  if (downloadsNS) {
+    try { await downloadsNS.save({ filename, data: text }); toast("Saved " + filename); }
+    catch (e) { if (e && e.code !== "declined") toast("Couldn't save the file here. Use Copy instead."); }
+    return;
+  }
+  if (window.claude) { toast("Saving files isn't available in this view. Use Copy instead."); return; }
+  const url = URL.createObjectURL(new Blob([text], { type: mime }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: filename });
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); toast("Copied"); }
+  catch { const el = $("#reportText"); if (el) { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } toast("Press Ctrl/Cmd+C to copy the selected text"); }
+}
+$("#exportBtn").addEventListener("click", () => saveFile(`property-watch-${today()}.json`, JSON.stringify(Object.assign({}, state, { example: false }), null, 2), "application/json"));
+$("#importFile").addEventListener("change", (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      const data = JSON.parse(fr.result);
+      if (!data || !data.brief || !Array.isArray(data.props)) throw new Error("shape");
+      data.brief = Object.assign(blankBrief(), data.brief);
+      data.props = data.props.map(p => Object.assign(blankProp(), p, { bands: Object.assign(blankProp().bands, p.bands || {}) }));
+      data.runs = data.runs || []; data.example = false; data.tab = data.tab || "props";
+      state = data; draftRun = null; save(); render(); toast(`Imported ${data.props.length} properties`);
+    } catch { toast("That file isn't a Property Watch backup."); }
+    e.target.value = "";
+  };
+  fr.readAsText(file);
+});
+
+/* ---------- events ---------- */
+function findProp(id) { return state.props.find(p => p.id === id); }
+function logChange(p, field, from, to) { if (String(from ?? "") !== String(to ?? "") && ["price", "status"].includes(field)) p.history.push({ date: today(), field: field === "price" ? "Price" : "Status", from: String(from ?? ""), to: String(to ?? ""), source: "" }); }
+
+app.addEventListener("click", (e) => {
+  const go = e.target.closest("[data-tab-go]"); if (go) return setTab(go.dataset.tabGo);
+  const el = e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act, pid = el.dataset.pid;
+  if (act === "fresh") { state = { v: 1, example: false, brief: blankBrief(), props: [], runs: [], tab: "brief" }; draftRun = null; }
+  else if (act === "keep") { state.example = false; }
+  else if (act === "rmsub") { state.brief.suburbs.splice(+el.dataset.i, 1); }
+  else if (act === "clearsubs") { state.brief.suburbs = []; }
+  else if (act === "preset") { PRESETS[el.dataset.k].forEach(s => { if (!state.brief.suburbs.includes(s)) state.brief.suburbs.push(s); }); }
+  else if (act === "filter") { propFilter = el.dataset.k; }
+  else if (act === "addprop") { const p = blankProp(); state.props.unshift(p); openCards.add(p.id); propFilter = "all"; save(); render(); const inp = $(`#p-${p.id}-address`); if (inp) inp.focus(); return; }
+  else if (act === "askdel") { confirmDel = pid; }
+  else if (act === "nodel") { confirmDel = null; }
+  else if (act === "del") { state.props = state.props.filter(p => p.id !== pid); confirmDel = null; toast("Property deleted"); }
+  else if (act === "addcomp") { findProp(pid).comps.push({ addr: "", price: "", date: "", land: "" }); openCards.add(pid); }
+  else if (act === "rmcomp") { findProp(pid).comps.splice(+el.dataset.i, 1); }
+  else if (act === "saverun") { return saveRun(); }
+  else if (act === "resetrun") { startRun(); }
+  else if (act === "copyreport") { return copyText(buildReport()); }
+  else if (act === "dlreport") { return saveFile(`property-watch-report-${today()}.md`, buildReport(), "text/markdown"); }
+  save(); render();
+});
+app.addEventListener("toggle", (e) => { const d = e.target; if (d.dataset && d.dataset.card) d.open ? openCards.add(d.dataset.card) : openCards.delete(d.dataset.card); }, true);
+app.addEventListener("submit", (e) => {
+  if (e.target.id !== "subForm") return;
+  e.preventDefault();
+  const v = $("#subInput").value.trim(); if (!v) return;
+  v.split(/;|\n/).map(s => s.trim()).filter(Boolean).forEach(s => { if (!state.brief.suburbs.includes(s)) state.brief.suburbs.push(s); });
+  save(); render(); const i = $("#subInput"); if (i) i.focus();
+});
+
+/* Text inputs update state on input (no re-render, so focus stays); change re-renders derived views. */
+function applyInput(t) {
+  const d = t.dataset;
+  const val = t.type === "checkbox" ? t.checked : t.value;
+  if (d.b !== undefined) { state.brief[d.b] = val; }
+  else if (d.pid && d.pf) { const p = findProp(d.pid); if (d.pf === "sources") p.sources = val.split("\n").map(s => s.trim()).filter(Boolean); else p[d.pf] = val; }
+  else if (d.pid && d.pb) { findProp(d.pid)[d.pb] = val; }
+  else if (d.pid && d.band) { findProp(d.pid).bands[d.band] = val; }
+  else if (d.pid && d.dd) { findProp(d.pid).dd[d.dd] = val; }
+  else if (d.pid && d.comp !== undefined) { findProp(d.pid).comps[+d.comp][d.cf] = val; }
+  else if (d.rid) { draftRun.rows[d.rid][d.rf] = val; }
+  else if (d.run) { draftRun[d.run] = val; }
+  else return false;
+  return true;
+}
+const focusVals = new Map();
+app.addEventListener("focusin", (e) => { const t = e.target; if (t.dataset && t.dataset.pid && t.dataset.pf) focusVals.set(t, findProp(t.dataset.pid)?.[t.dataset.pf]); });
+app.addEventListener("input", (e) => { if (e.target.type !== "checkbox" && e.target.tagName !== "SELECT" && applyInput(e.target)) save(); });
+app.addEventListener("change", (e) => {
+  const t = e.target;
+  if (t.dataset.pid && t.dataset.pf && ["price", "status"].includes(t.dataset.pf)) {
+    const p = findProp(t.dataset.pid), before = focusVals.has(t) ? focusVals.get(t) : p[t.dataset.pf];
+    applyInput(t); logChange(p, t.dataset.pf, before, p[t.dataset.pf]); focusVals.delete(t);
+  } else if (!applyInput(t)) return;
+  save();
+  /* keep the run table and long text fields from re-rendering under the cursor */
+  if (t.dataset.rid || t.dataset.run || t.tagName === "TEXTAREA") return;
+  const y = window.scrollY; render(); window.scrollTo(0, y);
+});
+
+render();
+})();
+</script>
+
+</body>
+</html>
