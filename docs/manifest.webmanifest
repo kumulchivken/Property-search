@@ -1,0 +1,11 @@
+{
+  "name": "Property Watch",
+  "short_name": "Property Watch",
+  "description": "Buyer's-agent property watch: brief, negotiation bands, due diligence and watch runs.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f5f2",
+  "theme_color": "#1f6b55",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
