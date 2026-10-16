@@ -1,30 +1,45 @@
 # Property Watch
 
-A shareable, single-page buyer's-agent tool for running a recurring property watch.
-Anyone who opens it sets their own brief: suburbs, budget ceiling, preferred spend, land size, pool, shed, access, solar and transport. The method stays the same for everyone:
+A shareable buyer's-agent property search app. Anyone who opens it sets their own brief: suburbs, budget, property type, bedrooms, land, yield target for investors, and features like pool or shed. The method stays the same for everyone.
 
-- **Brief first.** Every property gets a fit score against the brief, and hard misses are flagged (over ceiling, too few beds, land too small, no pool and no room to build one).
-- **Negotiation bands.** Each property has an opening offer, target, comfortable, limit and walk-away figure. A ruler shows where the current guide sits.
-- **Due diligence.** Each property has a checklist covering current and future flood maps, an insurance quote for the address, building and pest, pool certificate, shed approval and power, easements, title and overlays, comparable sales and contract conditions.
-- **Public sources only.** The Search tab builds realestate.com.au and Domain searches (for sale and sold) plus web searches for mortgagee, receiver, deceased-estate, auction, off-market and stale or reduced listings. Leads stay marked *unverified* until a public source confirms them.
-- **Watch runs.** Each run records the current guide, status, days on market and a source link for every property, then logs what changed.
-- **Report.** A plain-text summary covering what changed since the last run, how each priority property sits against its bands, new candidates and the watchlist.
+**Live app:** https://kumulchivken.github.io/Property-search/
 
-The tool only records and compares. It never contacts agents or makes offers.
+- **Brief first.** Type a suburb or postcode and the full name, state and postcode fill in from a built-in list of about 17,800 Australian suburbs.
+- **One-button search.** **Run search** searches every suburb in the brief at once using Domain's official listings API, and shows every result on one Results page with a photo, price, beds, baths, land and a link to view the listing.
+- **Scored against the brief.** Each result gets a fit score and red flags for hard misses (over the ceiling, too few bedrooms, land too small). Auction, mortgagee, deceased-estate, price-reduced and long-on-market signals are read from the listing text.
+- **Changes between searches.** Each search marks new listings, price changes, and listings that have dropped out since the last search.
+- **Tracking.** Press **Track** to move a result into My properties, where it gets negotiation bands (opening offer, target, comfortable, limit, walk-away), comparable sales, rent and gross yield for investors, and a due diligence checklist.
+- **Watch runs and report.** Record status changes over time and copy a plain-text summary of the latest search, priority properties against their bands, candidates and the watchlist.
 
-## Running it without a Claude account
+The app only searches, records and compares. It never contacts agents or makes offers.
+
+## Connecting the search
+
+Live results need a free Domain developer API key. Two ways to use it:
+
+- **For everyone (recommended):** deploy the small relay in [`relay/`](relay/README.md) to Cloudflare Workers (free), then set `DEFAULT_SEARCH_URL` in `src/property-watch.html` to its address. Visitors can then search with no setup.
+- **Just you:** paste your key into **Search → Search connection** in the app. Some browsers block calling Domain directly; if so, use the relay.
+
+Without a connection, the Search tab still offers links that open the same search on realestate.com.au and Domain.
+
+## Running it
 
 The app is one HTML file with no server and no sign-in.
 
-- **As a file:** download `docs/index.html` (rename it `property-watch.html` if you like) and open it in Chrome, Safari, Edge or Firefox. You can email it or put it on a USB stick or cloud drive. Data saves in that browser.
-- **As a website (GitHub Pages):** `.github/workflows/pages.yml` publishes `docs/` on every push. Turn it on once under **Settings → Pages → Source: GitHub Actions**. GitHub Pages on a private repository needs a paid GitHub plan; on the free plan, make the repository public first. Once hosted, the site works offline after the first visit and can be added to a phone's home screen.
-- **Any other static host** (Netlify, Cloudflare Pages, a web server): upload the contents of `docs/`.
+- **Website:** `.github/workflows/pages.yml` builds and publishes `docs/` to GitHub Pages on every push.
+- **As a file:** download `docs/index.html` and open it in any browser. Data saves in that browser.
+- **Any other static host:** upload the contents of `docs/`.
 
 ## Data
 
-Data stays in the viewer's own browser (`localStorage`). Use **Export backup** and **Import** to move it between devices or to hand a brief to someone else.
+Each person's brief, properties and results stay in their own browser (`localStorage`). **Export backup** and **Import** move them between devices or to someone else; backups never include an API key.
+
+Suburb names and postcodes come from the community-maintained [Australian Postcodes](https://github.com/matthewproctor/australianpostcodes) dataset (delivery areas only).
 
 ## Files
 
-- `src/property-watch.html` is the page source, published as-is to claude.ai Artifacts.
-- `scripts/build.sh` wraps it into the standalone `docs/index.html`, plus the web manifest, icon and offline service worker in `docs/`. Run it after editing the source.
+- `src/property-watch.html` is the app source.
+- `data/suburbs.json` is the suburb list.
+- `scripts/build.sh` inlines the suburb list and writes the standalone `docs/index.html`. Run it after editing the source; the Pages workflow also runs it.
+- `docs/` holds the built app, web manifest, icon and offline service worker.
+- `relay/` holds the Cloudflare Worker that connects the app to Domain's API.

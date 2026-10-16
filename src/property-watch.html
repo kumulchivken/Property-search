@@ -1,10 +1,9 @@
 <title>Property Watch</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: a working ledger. Sticky tab bar over one column of panels; property cards stack, each with a price-band ruler. */
+/* Layout: a working ledger. Sticky tab bar over one column of panels; results in a card grid, tracked properties with a price-band ruler. */
 :root {
   --bg: #f3f5f2;
   --surface: #ffffff;
@@ -12,7 +11,7 @@
   --ink: #17221d;
   --muted: #5b6a62;
   --line: #d3dbd5;
-  --accent: #1f6b55;        /* eucalypt */
+  --accent: #1f6b55;
   --accent-ink: #ffffff;
   --accent-soft: #dcebe4;
   --good: #227a3d;  --good-soft: #dff0e2;
@@ -43,7 +42,7 @@
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
-.wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
 h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; }
 h2 { font-size: 1.3rem; font-weight: 700; }
@@ -73,7 +72,7 @@ section.panel { display: grid; gap: 18px; }
 .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
 .field { display: grid; gap: 4px; min-width: 0; }
 .field > span { font-size: 0.82rem; font-weight: 600; color: var(--muted); }
-input[type="text"], input[type="number"], input[type="url"], input[type="date"], select, textarea {
+input[type="text"], input[type="number"], input[type="url"], input[type="date"], input[type="password"], input[type="search"], select, textarea {
   width: 100%; font: 400 0.95rem var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; min-width: 0;
 }
 textarea { min-height: 70px; resize: vertical; }
@@ -84,9 +83,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .btn { font: 600 0.9rem var(--body); border-radius: 6px; padding: 8px 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
 .btn:hover { border-color: var(--accent); }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.big { font-size: 1.05rem; padding: 12px 22px; }
 .btn.danger { color: var(--bad); }
 .btn.sm { padding: 5px 10px; font-size: 0.82rem; }
 .btn.ghost { border-color: transparent; background: none; }
+.btn[disabled] { opacity: 0.6; cursor: progress; }
 
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 99px; font-size: 0.8rem; font-weight: 600; background: var(--sunk); color: var(--ink); white-space: nowrap; }
 .chip button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0; }
@@ -98,53 +99,75 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 
 .banner { background: var(--info-soft); color: var(--ink); border-radius: var(--r); padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
 .banner p { flex: 1 1 280px; }
+.notice { border-radius: var(--r); padding: 12px 16px; display: grid; gap: 6px; }
+.notice.bad { background: var(--bad-soft); }
+.notice.warn { background: var(--warn-soft); }
+.notice.good { background: var(--good-soft); }
 
-/* property cards */
+/* suburb type-ahead */
+.ac { position: relative; flex: 1 1 260px; min-width: 0; }
+.ac ul { position: absolute; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.12); z-index: 4; max-height: 300px; overflow-y: auto; }
+.ac li { padding: 8px 10px; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
+.ac li[aria-selected="true"], .ac li:hover { background: var(--accent-soft); }
+.ac li .pc { font-family: var(--mono); color: var(--muted); font-size: 0.85rem; }
+
+/* tracked property cards */
 .props { display: grid; gap: 14px; }
 .prop { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); display: grid; min-width: 0; }
 .prop .head { padding: 14px 16px; display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; align-items: start; }
-.prop .addr { font-family: var(--display); font-weight: 700; font-size: 1.1rem; }
-.prop .facts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.88rem; color: var(--muted); }
-.prop .facts b { color: var(--ink); font-weight: 600; }
-.prop .score { text-align: right; }
-.prop .score .big { font-family: var(--mono); font-size: 1.5rem; font-weight: 600; line-height: 1; }
+.addr { font-family: var(--display); font-weight: 700; font-size: 1.1rem; overflow-wrap: anywhere; }
+.facts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.88rem; color: var(--muted); }
+.facts b { color: var(--ink); font-weight: 600; }
+.score { text-align: right; }
+.score .big { font-family: var(--mono); font-size: 1.5rem; font-weight: 600; line-height: 1; }
 .prop .body { padding: 0 16px 14px; display: grid; gap: 12px; }
-.prop .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .prop details { border-top: 1px solid var(--line); }
 .prop summary { cursor: pointer; padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: var(--accent); }
 .prop .edit { padding: 4px 16px 16px; display: grid; gap: 14px; }
 .tier-priority { border-left: 4px solid var(--accent); }
 .tier-downgraded, .tier-outside { opacity: 0.78; }
 
+/* search results */
+.results { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 14px; }
+.res { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+.res .ph { aspect-ratio: 16 / 10; max-width: 100%; background: var(--sunk); position: relative; }
+.res .ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.res .ph .badges { position: absolute; left: 8px; top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+.res .ph .noimg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 0.85rem; }
+.res .inner { padding: 12px 14px 14px; display: grid; gap: 8px; align-content: start; }
+.res .price { font-weight: 600; }
+.res .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.res.miss { opacity: 0.82; }
+.statline { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.stat { display: grid; }
+.stat b { font-family: var(--mono); font-size: 1.35rem; font-weight: 600; line-height: 1.1; }
+
 /* band ruler */
 .ruler { display: grid; gap: 6px; }
+.ruler .verdict { font-size: 0.88rem; }
 .ruler .bar { position: relative; height: 10px; margin: 12px 0 4px; background: var(--sunk); border-radius: 3px; }
 .ruler .legend { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 0.78rem; color: var(--muted); }
 .ruler .legend b { color: var(--ink); font-weight: 600; }
 .ruler .seg { position: absolute; top: 0; bottom: 0; }
 .ruler .tick { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--muted); }
-.ruler .tick.ceil { background: var(--bad); width: 2px; top: -7px; bottom: -7px; }
+.ruler .tick.ceil { background: var(--bad); top: -7px; bottom: -7px; }
 .ruler .pin { position: absolute; top: -9px; width: 0; height: 0; margin-left: -7px; border: 7px solid transparent; border-top: 11px solid var(--ink); border-bottom: 0; }
-.ruler .verdict { font-size: 0.88rem; }
 
 .tablewrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
 th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
 td.num, th.num { text-align: right; }
-
-.links { display: grid; gap: 8px; }
-.linkrow { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 6px 14px; padding: 8px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
-.linkrow:last-child { border-bottom: 0; }
-.linkrow .what { font-weight: 600; }
-.linkrow .go { display: flex; flex-wrap: wrap; gap: 6px 12px; min-width: 0; }
-@media (max-width: 560px) { .linkrow { grid-template-columns: 1fr; } }
-
 .rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+ol.rules { padding-left: 22px; }
 pre.report { white-space: pre-wrap; word-break: break-word; background: var(--sunk); border-radius: 6px; padding: 14px; font: 0.85rem/1.55 var(--mono); margin: 0; max-height: 520px; overflow: auto; }
+details.more > summary { cursor: pointer; font-weight: 600; color: var(--accent); }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; z-index: 20; }
 .confirm { background: var(--bad-soft); border-radius: 6px; padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .empty { text-align: center; padding: 30px 16px; color: var(--muted); display: grid; gap: 10px; justify-items: center; }
+.spinner { width: 18px; height: 18px; border: 3px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
@@ -162,7 +185,8 @@ pre.report { white-space: pre-wrap; word-break: break-word; background: var(--su
     <nav class="tabs" role="tablist" id="tabs">
       <button role="tab" data-tab="brief" type="button">Brief</button>
       <button role="tab" data-tab="search" type="button">Search</button>
-      <button role="tab" data-tab="props" type="button">Properties<span class="count" id="propCount">0</span></button>
+      <button role="tab" data-tab="results" type="button">Results<span class="count" id="resCount">0</span></button>
+      <button role="tab" data-tab="props" type="button">My properties<span class="count" id="propCount">0</span></button>
       <button role="tab" data-tab="run" type="button">Watch run</button>
       <button role="tab" data-tab="report" type="button">Report</button>
     </nav>
@@ -173,6 +197,14 @@ pre.report { white-space: pre-wrap; word-break: break-word; background: var(--su
 <div class="toast" id="toast" hidden></div>
 
 <script>
+/* Australian suburbs and postcodes, inlined by scripts/build.sh from data/suburbs.json
+   (source: github.com/matthewproctor/australianpostcodes, delivery areas only). */
+const SUBURB_DATA = /*__SUBURBS__*/null;
+/* Relay that forwards searches to the Domain listings API (see relay/README.md).
+   Set this once the relay is deployed so visitors can search with no setup. */
+const DEFAULT_SEARCH_URL = "";
+</script>
+<script>
 (() => {
 "use strict";
 
@@ -181,9 +213,9 @@ const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const uid = () => Math.random().toString(36).slice(2, 10);
 const today = () => new Date().toISOString().slice(0, 10);
-const clone = (o) => JSON.parse(JSON.stringify(o));
+const daysSince = (iso) => { const t = Date.parse(iso); return isFinite(t) ? Math.max(0, Math.floor((Date.now() - t) / 864e5)) : ""; };
 
-/* "$1.12m", "990k", "1,150,000", "915-930k" (first number) -> dollars */
+/* "$1.12m", "990k", "1,150,000", "Offers over $899,000" -> dollars */
 function parseMoney(v) {
   if (v === null || v === undefined || v === "") return null;
   if (typeof v === "number") return isFinite(v) ? v : null;
@@ -192,45 +224,67 @@ function parseMoney(v) {
   if (!m) return null;
   let n = parseFloat(m[1]);
   if (m[2] === "m") n *= 1e6; else if (m[2] === "k") n *= 1e3;
-  else if (n < 10) n *= 1e6;          /* "1.12" read as millions */
-  else if (n < 10000) n *= 1e3;       /* "990" read as thousands */
+  else if (n < 10) n *= 1e6;
+  else if (n < 10000) n *= 1e3;
   return Math.round(n);
 }
-/* range like "$1.12-1.13m" or "915-930k" -> [low, high] */
 function parseRange(v) {
   if (!v) return [null, null];
   const s = String(v).toLowerCase().replace(/[$,\s]/g, "").replace(/to/g, "-");
-  const parts = s.split(/[-–]/).filter(Boolean);
+  const parts = s.split(/[-–]/).filter(p => /\d/.test(p));
   if (parts.length < 2) { const n = parseMoney(s); return [n, n]; }
   const unit = (parts[1].match(/[mk]$/) || [""])[0];
   const lo = parseMoney(/[mk]$/.test(parts[0]) ? parts[0] : parts[0] + unit);
-  const hi = parseMoney(parts[1]);
-  return [lo, hi];
+  return [lo, parseMoney(parts[1])];
 }
 function fmt(n) {
   if (n === null || n === undefined || !isFinite(n)) return "—";
-  if (n >= 1e6) return "$" + (n / 1e6).toFixed(n % 1e4 === 0 ? 2 : 3).replace(/0+$/, "").replace(/\.$/, "") + "m";
+  if (n >= 1e6) return "$" + (n / 1e6).toFixed(3).replace(/0+$/, "").replace(/\.$/, "") + "m";
   return "$" + Math.round(n / 1e3) + "k";
 }
-const STATES = ["QLD", "NSW", "VIC", "SA", "WA", "TAS", "NT", "ACT"];
 function parseSuburb(s) {
   const m = String(s).trim().match(/^(.*?)[,\s]+(QLD|NSW|VIC|SA|WA|TAS|NT|ACT)\s*(\d{4})?$/i);
   if (!m) return { name: String(s).trim(), state: "", pc: "" };
   return { name: m[1].trim(), state: m[2].toUpperCase(), pc: m[3] || "" };
 }
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const g = (q) => "https://www.google.com/search?q=" + encodeURIComponent(q);
+
+/* ---------- suburb index for type-ahead ---------- */
+let SUBURBS = null;
+function suburbIndex() {
+  if (SUBURBS) return SUBURBS;
+  SUBURBS = [];
+  if (SUBURB_DATA) for (const [st, list] of Object.entries(SUBURB_DATA)) for (const item of list.split("|")) {
+    const [n, p] = item.split("~");
+    SUBURBS.push({ n, s: st, p, k: n.toLowerCase() });
+  }
+  return SUBURBS;
+}
+function suggest(q) {
+  q = q.trim().toLowerCase();
+  if (q.length < 2) return [];
+  const idx = suburbIndex(), starts = [], contains = [];
+  const isPc = /^\d{3,4}$/.test(q);
+  for (const s of idx) {
+    if (isPc) { if (s.p.startsWith(q)) starts.push(s); continue; }
+    const full = `${s.k} ${s.s.toLowerCase()} ${s.p}`;
+    if (full.startsWith(q)) starts.push(s); else if (contains.length < 20 && s.k.includes(q)) contains.push(s);
+  }
+  starts.sort((a, b) => (a.k === q ? -1 : 0) - (b.k === q ? -1 : 0) || a.k.length - b.k.length || a.k.localeCompare(b.k));
+  return starts.concat(contains).slice(0, 10);
+}
+const subLabel = (s) => `${s.n} ${s.s} ${s.p}`;
 
 /* ---------- storage (per-browser) ---------- */
-const KEY = "property-watch.v1";
+const KEY = "property-watch.v2";
 function load() { try { const raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : null; } catch { return null; } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage blocked: session-only */ } }
 let toastTimer;
-function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2600); }
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2800); }
 
 /* ---------- model ---------- */
-const PRESETS = {
-  "Brisbane north / Moreton Bay": ["Griffin QLD 4503", "Murrumba Downs QLD 4503", "Mango Hill QLD 4509", "North Lakes QLD 4509", "Narangba QLD 4504", "Burpengary QLD 4505", "Morayfield QLD 4506", "Deception Bay QLD 4508", "Newport QLD 4020", "Scarborough QLD 4020", "Margate QLD 4019", "Kippa-Ring QLD 4021", "Rothwell QLD 4022"],
-};
+const PROPERTY_TYPES = [["House", "House"], ["Townhouse", "Townhouse"], ["ApartmentUnitFlat", "Apartment / unit"], ["Villa", "Villa"], ["Duplex", "Duplex"], ["VacantLand", "Land"]];
 const LEAD_TYPES = { mainstream: "Mainstream listing", auction: "Auction", mortgagee: "Mortgagee sale", receiver: "Receiver / liquidator", deceased: "Deceased estate", offmarket: "Off-market / coming soon", stale: "Stale / price reduced", distressed: "Other distressed", other: "Other lead" };
 const STATUSES = ["Active", "Under offer", "Under contract", "Sold", "Withdrawn", "Relisted", "Off-market", "Unknown"];
 const TIERS = { priority: "Priority", watch: "Watchlist", candidate: "New candidate", downgraded: "Downgraded", outside: "Outside strategy" };
@@ -238,98 +292,111 @@ const DD_ITEMS = [
   ["flood", "Flood overlay checked (current and future planning maps)"],
   ["insurance", "Insurance quote for the actual address"],
   ["bp", "Building and pest inspection"],
-  ["pool", "Pool safety certificate (or pool buildability confirmed)"],
-  ["shed", "Shed approval and power supply / electrical capacity"],
-  ["easement", "Easements, sewer lines and overland flow paths"],
   ["title", "Title search, zoning and council overlays"],
+  ["easement", "Easements, sewer lines and overland flow paths"],
   ["comps", "At least 3 comparable sales from the last 6 months"],
   ["contract", "Contract conditions set (finance, B&P, DD period)"],
+  ["rent", "Rental appraisal from a local property manager", (b) => b.purpose === "investment"],
+  ["vacancy", "Vacancy rate and days-to-lease checked for the suburb", (b) => b.purpose === "investment"],
+  ["depreciation", "Depreciation estimate and landlord insurance quote", (b) => b.purpose === "investment"],
+  ["strata", "Body corporate records, levies and sinking fund", (b) => (b.types || []).some(t => t !== "House" && t !== "VacantLand")],
+  ["pool", "Pool safety certificate (or pool buildability confirmed)", (b) => b.pool !== "none"],
+  ["shed", "Shed approval and power supply", (b) => b.shed],
 ];
+const ddItems = () => DD_ITEMS.filter(([, , when]) => !when || when(state.brief));
+
 const blankBrief = () => ({
-  name: "", ceiling: "", preferredMax: "", beds: 4, baths: 2, landMin: 700, landMax: "",
-  pool: "buildable", access: true, shed: true, solar: true, battery: false, rain: true,
-  trainKm: 5, school: "", schoolKm: 5, mustHaves: "", suburbs: [], includeUnderOffer: false,
-  goal: "",
+  name: "", goal: "", purpose: "home", types: ["House"], ceiling: "", preferredMax: "", targetYield: "",
+  beds: 3, baths: 1, landMin: "",
+  pool: "none", access: false, shed: false, solar: false, battery: false, rain: false,
+  trainKm: "", school: "", schoolKm: "", mustHaves: "", suburbs: [], includeUnderOffer: false,
 });
 const blankProp = () => ({
   id: uid(), added: today(), address: "", suburb: "", tier: "candidate", status: "Active", lead: "mainstream",
-  price: "", beds: "", baths: "", cars: "", land: "", pool: "unknown", access: "unknown", shed: "unknown",
+  price: "", rent: "", beds: "", baths: "", cars: "", land: "", type: "", pool: "unknown", access: "unknown", shed: "unknown",
   solar: false, battery: false, rain: false, trainKm: "", schoolKm: "", dom: "",
   bands: { open: "", target: "", comfortable: "", limit: "", walk: "" },
-  flood: "", dd: {}, comps: [], sources: [], notes: "", verified: true, history: [],
+  flood: "", dd: {}, comps: [], sources: [], notes: "", verified: true, history: [], listingId: "", url: "",
 });
 
 function exampleState() {
   const b = Object.assign(blankBrief(), {
-    name: "Example brief: family home, keep current place as a rental",
-    goal: "Buy the next family home well below the ceiling to keep borrowing capacity for the next investment.",
-    ceiling: "1200000", preferredMax: "1050000", beds: 4, baths: 2, landMin: 700, landMax: 1000,
-    pool: "buildable", access: true, shed: true, solar: true, battery: true, rain: true, trainKm: 5,
-    school: "Preferred school", schoolKm: 6,
-    mustHaves: "Powered shed or workshop suitable for a home studio. Side or rear access for a trailer.",
-    suburbs: PRESETS["Brisbane north / Moreton Bay"].slice(0, 6),
+    name: "Example: first investment property",
+    goal: "Buy a low-maintenance rental with solid yield and long-term growth, keeping a cash buffer for rates, vacancy and repairs.",
+    purpose: "investment", types: ["House", "Townhouse"], ceiling: "750000", preferredMax: "690000", targetYield: "4.5",
+    beds: 3, baths: 2, pool: "none", trainKm: 3, school: "Shopping centre", schoolKm: 3,
+    mustHaves: "Low maintenance. Easy to rent: near transport, shops and schools. Avoid flood-affected streets and high body corporate fees.",
+    suburbs: ["Redbank Plains QLD 4301", "Goodna QLD 4300", "Caboolture QLD 4510", "Morayfield QLD 4506", "Logan Central QLD 4114"],
   });
   const p1 = Object.assign(blankProp(), {
-    address: "Example A (sample data)", suburb: "Murrumba Downs", tier: "priority", status: "Active",
-    price: "$1.12-1.13m", beds: 4, baths: 2, cars: 2, land: 1047, pool: "yes", access: "yes", shed: "powered",
-    solar: true, rain: true, trainKm: 2.5, schoolKm: 4, dom: 21,
-    bands: { open: "1120000", target: "1150000", comfortable: "1160000", limit: "1170000", walk: "1200000" },
-    flood: "Not affected on current map; inside future planning flood area. Get an insurance quote.",
-    dd: { flood: true, comps: true }, notes: "Sample record to show how bands work. Delete when you start.",
-    comps: [{ addr: "Comparable 1", price: "1150000", date: "", land: "980" }, { addr: "Comparable 2", price: "1105000", date: "", land: "850" }],
+    address: "Example A (sample data)", suburb: "Goodna", tier: "priority", type: "Townhouse",
+    price: "$615-630k", rent: 560, beds: 3, baths: 2, cars: 1, land: 180, trainKm: 1.2, schoolKm: 1, dom: 18,
+    bands: { open: "600000", target: "620000", comfortable: "635000", limit: "650000", walk: "660000" },
+    flood: "Not on the current flood map. Check overland flow.", dd: { flood: true, rent: true },
+    notes: "Sample record. Body corporate about $45/week; check the sinking fund.",
+    comps: [{ addr: "Comparable 1", price: "625000", date: "", land: "190" }, { addr: "Comparable 2", price: "610000", date: "", land: "175" }],
   });
   const p2 = Object.assign(blankProp(), {
-    address: "Example B (sample data)", suburb: "Morayfield", tier: "priority", status: "Active",
-    price: "Offers over $899k", beds: 4, baths: 2, cars: 2, land: 763, pool: "yes", access: "yes", shed: "unpowered",
-    solar: true, trainKm: 3, dom: 64,
-    bands: { open: "900000", target: "930000", comfortable: "950000", limit: "970000", walk: "980000" },
-    notes: "Sample record. Long days on market suggests room to negotiate.",
+    address: "Example B (sample data)", suburb: "Morayfield", tier: "priority", type: "House",
+    price: "Offers over $699k", rent: 640, beds: 4, baths: 2, cars: 2, land: 600, trainKm: 2.5, schoolKm: 2, dom: 52,
+    bands: { open: "690000", target: "710000", comfortable: "725000", limit: "740000", walk: "750000" },
+    notes: "Sample record. 52 days on market suggests room to negotiate.",
   });
   const p3 = Object.assign(blankProp(), {
-    address: "Example C (sample data)", suburb: "Narangba", tier: "watch", status: "Under contract", lead: "mainstream",
-    price: "$1.08m", beds: 5, land: 820, pool: "no", access: "unknown", shed: "none",
-    notes: "Sample record. Watch for the contract falling over.",
+    address: "Example C (sample data)", suburb: "Caboolture", tier: "watch", status: "Under contract", type: "House",
+    price: "$680k", rent: 540, beds: 3, baths: 1, land: 650,
+    notes: "Sample record. Yield is under target; watch in case the contract falls over and the price drops.",
   });
-  return { v: 1, example: true, brief: b, props: [p1, p2, p3], runs: [], tab: "brief" };
+  return { v: 2, example: true, brief: b, props: [p1, p2, p3], runs: [], results: null, settings: { searchUrl: "", apiKey: "" }, tab: "brief" };
 }
 
-let state = load() || exampleState();
-if (!state.props) state.props = [];
-if (!state.runs) state.runs = [];
+function normalise(s) {
+  s.brief = Object.assign(blankBrief(), s.brief || {});
+  if (!Array.isArray(s.brief.types)) s.brief.types = ["House"];
+  s.props = (s.props || []).map(p => Object.assign(blankProp(), p, { bands: Object.assign(blankProp().bands, p.bands || {}) }));
+  s.runs = s.runs || []; s.results = s.results || null;
+  s.settings = Object.assign({ searchUrl: "", apiKey: "" }, s.settings || {});
+  return s;
+}
+let state = normalise(load() || exampleState());
 
 /* ---------- scoring against the brief ---------- */
 function priceOf(p) { const [lo, hi] = parseRange(p.price); return lo ?? hi; }
+function yieldOf(p) { const price = priceOf(p), rent = +p.rent; return price && rent ? (rent * 52 / price) * 100 : null; }
 function assess(p, b = state.brief) {
   const flags = [], pros = [];
   let got = 0, max = 0;
-  const add = (w, ok, label, partial) => { max += w; if (ok) { got += w; pros.push(label); } else if (partial) { got += w / 2; } };
+  const add = (w, ok, label, partial) => { max += w; if (ok) { got += w; if (label) pros.push(label); } else if (partial) { got += w / 2; } };
   const price = priceOf(p), ceiling = parseMoney(b.ceiling), pref = parseMoney(b.preferredMax);
-  const walk = parseMoney(p.bands.walk), limit = parseMoney(p.bands.limit);
-  if (ceiling && price && price > ceiling) flags.push("Guide above ceiling");
+  const limit = parseMoney(p.bands.limit);
+  const y = yieldOf(p), ty = parseFloat(b.targetYield);
+  if (ceiling && price && price > ceiling) flags.push("Price above ceiling");
   if (ceiling && limit && limit > ceiling) flags.push("Your limit is above the ceiling");
   if (b.beds && p.beds !== "" && +p.beds < +b.beds) flags.push(`Only ${p.beds} bed`);
+  if (b.baths && p.baths !== "" && +p.baths < +b.baths) flags.push(`Only ${p.baths} bath`);
   if (b.landMin && p.land !== "" && +p.land < +b.landMin) flags.push(`Land ${p.land} m² under ${b.landMin}`);
   if (b.pool === "required" && p.pool !== "yes") flags.push("No pool");
   if (b.pool === "buildable" && p.pool === "no") flags.push("No pool and not buildable");
+  if (b.purpose === "investment" && ty && y !== null && y < ty - 1) flags.push(`Yield ${y.toFixed(1)}%`);
   if (["Sold", "Withdrawn"].includes(p.status)) flags.push(p.status);
   if (!p.verified) flags.push("Unverified lead");
 
   if (pref) add(3, price && price <= pref, "Under preferred spend", price && ceiling && price <= ceiling);
-  if (b.beds) add(2, p.beds !== "" && +p.beds >= +b.beds, `${p.beds}+ bed`);
-  if (b.landMin) add(3, p.land !== "" && +p.land >= +b.landMin && (!b.landMax || +p.land <= +b.landMax * 1.6), `${p.land} m²`);
+  if (b.purpose === "investment" && ty) add(3, y !== null && y >= ty, y !== null ? `Yield ${y.toFixed(1)}%` : "", y !== null && y >= ty - 0.5);
+  if (b.beds) add(2, p.beds !== "" && +p.beds >= +b.beds, p.beds !== "" ? `${p.beds} bed` : "");
+  if (b.landMin) add(2, p.land !== "" && +p.land >= +b.landMin, p.land !== "" ? `${p.land} m²` : "");
   if (b.pool !== "none") add(2, p.pool === "yes", "Pool", p.pool === "buildable" && b.pool !== "required");
   if (b.access) add(2, p.access === "yes", "Side/rear access");
-  if (b.shed) add(3, p.shed === "powered", "Powered shed", p.shed === "unpowered");
+  if (b.shed) add(2, p.shed === "powered", "Powered shed", p.shed === "unpowered");
   if (b.solar) add(1, !!p.solar, "Solar");
   if (b.battery) add(1, !!p.battery, "Battery");
   if (b.rain) add(1, !!p.rain, "Rainwater");
   if (b.trainKm) add(1, p.trainKm !== "" && +p.trainKm <= +b.trainKm, "Near train");
   if (b.school && b.schoolKm) add(1, p.schoolKm !== "" && +p.schoolKm <= +b.schoolKm, "Near " + b.school);
   const score = max ? Math.round((got / max) * 100) : 0;
-  return { score, flags, pros, price, walk };
+  return { score, flags, pros, price, yld: y };
 }
 
-/* where a price sits against the negotiation bands */
 function bandVerdict(p, price) {
   const B = Object.fromEntries(Object.entries(p.bands).map(([k, v]) => [k, parseMoney(v)]));
   const ceiling = parseMoney(state.brief.ceiling);
@@ -347,8 +414,8 @@ function bandVerdict(p, price) {
 function rulerHTML(p, price) {
   const B = p.bands, pts = [["open", "Open"], ["target", "Target"], ["comfortable", "Comf."], ["limit", "Limit"], ["walk", "Walk"]]
     .map(([k, l]) => [l, parseMoney(B[k])]).filter(x => x[1]);
-  const ceiling = parseMoney(state.brief.ceiling);
   if (pts.length < 2) return "";
+  const ceiling = parseMoney(state.brief.ceiling);
   const vals = pts.map(x => x[1]).concat(price ? [price] : []);
   let lo = Math.min(...vals), hi = Math.max(...vals);
   const pad = (hi - lo) * 0.06 || 20000; lo -= pad; hi += pad;
@@ -367,38 +434,141 @@ function rulerHTML(p, price) {
   return h;
 }
 
-/* ---------- search links ---------- */
-function searchLinks(b) {
+/* ---------- live search (Domain listings API) ---------- */
+const DOMAIN_SEARCH = "https://api.domain.com.au/v1/listings/residential/_search";
+const searchUrl = () => (state.settings.searchUrl || DEFAULT_SEARCH_URL || "").trim().replace(/\/+$/, "");
+const canSearch = () => !!(searchUrl() || state.settings.apiKey.trim());
+let searching = false, searchError = null;
+
+function buildQuery(b, page) {
+  const locations = b.suburbs.map(parseSuburb).map(s => ({ state: s.state, suburb: s.name, postCode: s.pc, includeSurroundingSuburbs: false }));
+  const q = {
+    listingType: "Sale", propertyTypes: b.types.length ? b.types : ["House"], locations,
+    minBedrooms: +b.beds || undefined, minBathrooms: +b.baths || undefined,
+    maxPrice: parseMoney(b.ceiling) || undefined,
+    excludeDepositTaken: !b.includeUnderOffer, excludePriceWithheld: false,
+    sort: { sortKey: "DateListed", direction: "Descending" }, pageSize: 100, pageNumber: page,
+  };
+  return JSON.parse(JSON.stringify(q));
+}
+async function callSearch(body) {
+  const relay = searchUrl();
+  const res = relay
+    ? await fetch(relay + "/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    : await fetch(DOMAIN_SEARCH, { method: "POST", headers: { "Content-Type": "application/json", "X-Api-Key": state.settings.apiKey.trim() }, body: JSON.stringify(body) });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const err = new Error(text.slice(0, 300)); err.status = res.status; throw err;
+  }
+  return res.json();
+}
+const SIGNALS = [
+  [/mortgagee|bank instruct|in possession/i, "Mortgagee"], [/deceased|executor|estate sale/i, "Deceased estate"],
+  [/receiver|liquidat|controller appointed/i, "Receiver"], [/price (reduced|drop|adjust)|reduced to sell|new price/i, "Price reduced"],
+  [/motivated|must (be )?sold|must sell|urgent sale|relocat/i, "Motivated vendor"],
+];
+function mapListing(l) {
+  const d = l.propertyDetails || {}, pr = l.priceDetails || {};
+  const text = [l.headline, l.summaryDescription, (d.features || []).join(" ")].join(" ");
+  const price = pr.price || pr.priceFrom || parseMoney(pr.displayPrice);
+  const img = (l.media || []).find(m => m.category === "Image");
+  const auction = l.auctionSchedule && l.auctionSchedule.time;
+  const signals = SIGNALS.filter(([re]) => re.test(text)).map(([, label]) => label);
+  if (auction || /auction/i.test(pr.displayPrice || "")) signals.push("Auction");
+  const dom = daysSince(l.dateListed);
+  if (dom !== "" && dom >= 60) signals.push(`${dom} days listed`);
+  const addr = d.displayableAddress || [d.unitNumber && d.unitNumber + "/", d.streetNumber, d.street].filter(Boolean).join(" ") || l.headline || "Address withheld";
+  return {
+    id: String(l.id), url: "https://www.domain.com.au/" + (l.listingSlug || l.id),
+    address: addr, suburb: d.suburb || "", state: d.state || "", pc: d.postcode || "",
+    priceText: pr.displayPrice || (price ? fmt(price) : "Contact agent"), priceNum: price || null,
+    beds: d.bedrooms ?? "", baths: d.bathrooms ?? "", cars: d.carspaces ?? "", land: d.landArea ? Math.round(d.landArea) : "",
+    type: d.propertyType || "", img: img ? img.url : "", headline: l.headline || "", dateListed: l.dateListed || "", dom,
+    pool: /pool/i.test(text) ? "yes" : "unknown", shed: /powered shed|workshop/i.test(text) ? "powered" : /shed/i.test(text) ? "unpowered" : "unknown",
+    access: /side access|rear access|drive.?through/i.test(text) ? "yes" : "unknown",
+    solar: /solar/i.test(text), battery: /batter(y|ies)/i.test(text), rain: /rain ?water|water tank/i.test(text),
+    signals,
+  };
+}
+function resultAsProp(r) {
+  return Object.assign(blankProp(), {
+    address: r.address, suburb: r.suburb, price: r.priceNum ? String(r.priceNum) : r.priceText, beds: r.beds, baths: r.baths, cars: r.cars,
+    land: r.land, type: r.type, pool: r.pool, shed: r.shed, access: r.access, solar: r.solar, battery: r.battery, rain: r.rain, dom: r.dom,
+  });
+}
+async function runSearch() {
+  const b = state.brief;
+  if (!b.suburbs.length) { toast("Add at least one suburb to your brief first"); return setTab("brief"); }
+  if (!canSearch()) { searchError = { kind: "setup" }; return setTab("search"); }
+  searching = true; searchError = null; render();
+  try {
+    let raw = [];
+    for (let page = 1; page <= 3; page++) {
+      const batch = await callSearch(buildQuery(b, page));
+      if (!Array.isArray(batch)) throw Object.assign(new Error("Unexpected response from the search service"), { status: 502 });
+      raw = raw.concat(batch);
+      if (batch.length < 100) break;
+    }
+    const listings = [];
+    raw.forEach(item => {
+      if (item.type === "PropertyListing" && item.listing) listings.push(item.listing);
+      else if (item.type === "Project" && Array.isArray(item.listings)) listings.push(...item.listings);
+    });
+    const seen = new Set(), items = [];
+    listings.forEach(l => { if (l && !seen.has(String(l.id))) { seen.add(String(l.id)); items.push(mapListing(l)); } });
+    const prev = state.results ? Object.fromEntries(state.results.items.map(r => [r.id, { address: r.address, suburb: r.suburb, priceText: r.priceText, url: r.url }])) : null;
+    items.forEach(r => {
+      r.isNew = !!prev && !prev[r.id];
+      r.wasPrice = prev && prev[r.id] && prev[r.id].priceText !== r.priceText ? prev[r.id].priceText : "";
+    });
+    const gone = prev ? Object.entries(prev).filter(([id]) => !seen.has(id)).map(([id, v]) => Object.assign({ id }, v)) : [];
+    state.results = { at: new Date().toISOString(), items, gone, first: !prev, suburbs: b.suburbs.length };
+    syncTracked(items);
+    searching = false; save();
+    toast(`Found ${items.length} listing${items.length === 1 ? "" : "s"}`);
+    setTab("results");
+  } catch (e) {
+    searching = false;
+    searchError = { kind: e.status ? "http" : "network", status: e.status, message: e.message };
+    setTab("search");
+  }
+}
+/* keep tracked properties in step with what the search returned */
+function syncTracked(items) {
+  const byId = Object.fromEntries(items.map(r => [r.id, r]));
+  state.props.forEach(p => {
+    const r = p.listingId && byId[p.listingId];
+    if (!r) return;
+    if (r.priceText && r.priceText !== p.price) { p.history.push({ date: today(), field: "Price", from: p.price, to: r.priceText, source: r.url }); p.price = r.priceText; }
+    p.dom = r.dom;
+  });
+}
+function trackResult(id) {
+  const r = state.results.items.find(x => x.id === id); if (!r) return;
+  if (state.props.some(p => p.listingId === id)) return;
+  const p = Object.assign(resultAsProp(r), { tier: "candidate", price: r.priceText, listingId: r.id, url: r.url, sources: [r.url] });
+  if (r.signals.includes("Mortgagee")) p.lead = "mortgagee";
+  else if (r.signals.includes("Deceased estate")) p.lead = "deceased";
+  else if (r.signals.includes("Receiver")) p.lead = "receiver";
+  else if (r.signals.includes("Auction")) p.lead = "auction";
+  else if (r.signals.some(s => /reduced|days listed|Motivated/.test(s))) p.lead = "stale";
+  state.props.unshift(p);
+  toast("Added to My properties");
+}
+
+/* portal links for checking by hand */
+function portalLinks(b) {
   const subs = b.suburbs.map(parseSuburb);
-  const min = 0, max = parseMoney(b.ceiling) || "";
-  const beds = b.beds || 1, land = b.landMin || "";
+  const max = parseMoney(b.ceiling) || "";
+  const beds = b.beds || 1;
   const reaSubs = subs.map(s => [s.name, s.state, s.pc].filter(Boolean).join(" ").toLowerCase().replace(/ (qld|nsw|vic|sa|wa|tas|nt|act)\b/, ",$&").replace(/ /g, "+")).join(";+");
-  const reaPrice = max ? `-between-${min}-${max}` : "";
-  const rea = `https://www.realestate.com.au/buy/property-house-with-${beds}-bedrooms${reaPrice}-in-${reaSubs}/list-1?${land ? "landSize=" + land + "-any&" : ""}source=refinement`;
-  const reaSold = `https://www.realestate.com.au/sold/property-house-with-${beds}-bedrooms-in-${reaSubs}/list-1`;
+  const REA_TYPES = { House: "house", Townhouse: "townhouse", ApartmentUnitFlat: "unit+apartment", Villa: "villa", Duplex: "duplex+semi-detached", VacantLand: "land" };
+  const types = b.types.map(t => REA_TYPES[t]).filter(Boolean).join("-");
+  const rea = `https://www.realestate.com.au/buy/${types ? "property-" + types + "-" : ""}with-${beds}-bedrooms${max ? `-between-0-${max}` : ""}-in-${reaSubs}/list-1`;
   const domSubs = subs.map(s => slug([s.name, s.state, s.pc].filter(Boolean).join(" "))).join(",");
-  const dq = new URLSearchParams({ suburb: domSubs, ptype: "house", bedrooms: beds + "-any" });
+  const dq = new URLSearchParams({ suburb: domSubs, bedrooms: beds + "-any" });
   if (max) dq.set("price", `0-${max}`);
-  if (land) { dq.set("landsize", land + "-any"); dq.set("landsizeunit", "m2"); }
-  if (!b.includeUnderOffer) dq.set("excludeunderoffer", "1");
-  const domain = `https://www.domain.com.au/sale/?${dq.toString().replace(/%2C/g, ",")}`;
-  const ds = new URLSearchParams({ suburb: domSubs, ptype: "house", bedrooms: beds + "-any" });
-  const domainSold = `https://www.domain.com.au/sold-listings/?${ds.toString().replace(/%2C/g, ",")}`;
-  const g = (q) => "https://www.google.com/search?q=" + encodeURIComponent(q);
-  /* keep each OR-group to 6 suburbs so the query stays usable */
-  const groups = [];
-  for (let i = 0; i < subs.length; i += 6) groups.push(subs.slice(i, i + 6));
-  const area = (grp) => "(" + grp.map(s => `"${s.name}"`).join(" OR ") + ")" + (grp[0]?.state ? " " + grp[0].state : "");
-  const leads = [
-    ["Mortgagee sales", `("mortgagee sale" OR "mortgagee in possession" OR "bank instructions")`],
-    ["Receivers and liquidators", `("receivers" OR "liquidator" OR "controller appointed" OR "court ordered sale")`],
-    ["Deceased estates", `("deceased estate" OR "executor sale" OR "estate sale")`],
-    ["Auctions", `("auction" house) -"sold at auction"`],
-    ["Off-market and coming soon", `("off market" OR "off-market" OR "coming soon" OR "pre-market" OR "expressions of interest")`],
-    ["Stale and reduced", `("price reduced" OR "price drop" OR "motivated vendor" OR "must be sold" OR "relisted" OR "back on market")`],
-  ];
-  const featureTerms = [b.shed && '"powered shed"', b.pool !== "none" && "pool", b.access && '"side access"'].filter(Boolean).join(" ");
-  return { rea, reaSold, domain, domainSold, g, groups, area, leads, featureTerms, subs };
+  return { rea, domain: `https://www.domain.com.au/sale/?${dq.toString().replace(/%2C/g, ",")}` };
 }
 
 /* ---------- rendering ---------- */
@@ -409,44 +579,60 @@ $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-
 function render() {
   document.querySelectorAll("#tabs [data-tab]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === state.tab)));
   $("#propCount").textContent = state.props.length;
+  $("#resCount").textContent = state.results ? state.results.items.length : 0;
   $("#briefName").textContent = state.brief.name || "";
-  const views = { brief: renderBrief, search: renderSearch, props: renderProps, run: renderRun, report: renderReport };
-  app.innerHTML = (state.example ? `<div class="banner"><p><b>You're looking at example data.</b> The brief and the three sample properties show how the tool works. Start fresh to enter your own suburbs, budget and properties.</p><div class="row"><button class="btn primary sm" type="button" data-act="fresh">Start fresh</button><button class="btn sm" type="button" data-act="keep">Keep and edit</button></div></div>` : "") + (views[state.tab] || renderBrief)();
+  const views = { brief: renderBrief, search: renderSearch, results: renderResults, props: renderProps, run: renderRun, report: renderReport };
+  app.innerHTML = (state.example ? `<div class="banner"><p><b>You're looking at an example.</b> It shows a first investment property brief with three sample properties. Start fresh to enter your own suburbs, budget and must-haves.</p><div class="row"><button class="btn primary sm" type="button" data-act="fresh">Start fresh</button><button class="btn sm" type="button" data-act="keep">Keep and edit</button></div></div>` : "") + (views[state.tab] || renderBrief)();
 }
-
 function opt(list, val) { return list.map(([v, l]) => `<option value="${esc(v)}"${String(v) === String(val) ? " selected" : ""}>${esc(l)}</option>`).join(""); }
+const searchBtn = (label, cls = "primary big") => `<button class="btn ${cls}" type="button" data-act="search"${searching ? " disabled" : ""}>${searching ? `<span class="spinner" aria-hidden="true"></span> Searching…` : label}</button>`;
 
 function renderBrief() {
-  const b = state.brief;
-  const suburbChips = b.suburbs.map((s, i) => `<span class="chip accent">${esc(s)}<button type="button" aria-label="Remove ${esc(s)}" data-act="rmsub" data-i="${i}">×</button></span>`).join("") || `<span class="muted small">No suburbs yet. Add the corridor you want to search.</span>`;
+  const b = state.brief, inv = b.purpose === "investment";
+  const suburbChips = b.suburbs.map((s, i) => `<span class="chip accent">${esc(s)}<button type="button" aria-label="Remove ${esc(s)}" data-act="rmsub" data-i="${i}">×</button></span>`).join("") || `<span class="muted small">No suburbs yet. Start typing a suburb or postcode below.</span>`;
   return `<section class="panel">
   <div class="card">
-    <div><h2>Buyer's brief</h2><p class="muted small">Set the brief once. Every property is scored against it and every search link is built from it.</p></div>
+    <div><h2>Buyer's brief</h2><p class="muted small">Set the brief once. Searches use it, and every property is scored against it.</p></div>
     <div class="grid2">
-      <label class="field"><span>Brief name</span><input id="b-name" type="text" data-b="name" value="${esc(b.name)}" placeholder="e.g. Next family home, northside"></label>
-      <label class="field"><span>Goal</span><input id="b-goal" type="text" data-b="goal" value="${esc(b.goal)}" placeholder="e.g. Buy below ceiling to keep capacity for the next purchase"></label>
+      <label class="field"><span>Brief name</span><input id="b-name" type="text" data-b="name" value="${esc(b.name)}" placeholder="e.g. First investment property"></label>
+      <label class="field"><span>Buying for</span><select id="b-purpose" data-b="purpose">${opt([["home", "A home to live in"], ["investment", "An investment property"]], b.purpose)}</select></label>
     </div>
+    <label class="field"><span>Goal</span><input id="b-goal" type="text" data-b="goal" value="${esc(b.goal)}" placeholder="e.g. Buy below the ceiling to keep borrowing capacity for the next purchase"></label>
   </div>
 
   <div class="card">
-    <h3>Budget</h3>
+    <div class="row between"><h3>Where to search</h3><span class="small muted">${b.suburbs.length} suburb${b.suburbs.length === 1 ? "" : "s"}</span></div>
+    <div class="row">${suburbChips}</div>
+    <form class="row" id="subForm" autocomplete="off">
+      <div class="ac">
+        <input id="subInput" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="subList" aria-label="Add a suburb" placeholder="Type a suburb or postcode, e.g. Redbank or 4301">
+        <ul id="subList" role="listbox" hidden></ul>
+      </div>
+      <button class="btn" type="submit">Add</button>
+    </form>
+    ${b.suburbs.length ? `<div><button class="btn sm ghost danger" type="button" data-act="clearsubs">Clear all suburbs</button></div>` : ""}
+  </div>
+
+  <div class="card">
+    <h3>Budget${inv ? " and return" : ""}</h3>
     <div class="grid3">
-      <label class="field"><span>Hard ceiling (AUD)</span><input id="b-ceiling" type="text" inputmode="decimal" data-b="ceiling" data-money value="${esc(b.ceiling)}" placeholder="1,200,000"></label>
-      <label class="field"><span>Preferred maximum</span><input id="b-pref" type="text" inputmode="decimal" data-b="preferredMax" data-money value="${esc(b.preferredMax)}" placeholder="1,050,000"></label>
+      <label class="field"><span>Hard ceiling (AUD)</span><input id="b-ceiling" type="text" inputmode="decimal" data-b="ceiling" value="${esc(b.ceiling)}" placeholder="750,000"></label>
+      <label class="field"><span>Preferred maximum</span><input id="b-pref" type="text" inputmode="decimal" data-b="preferredMax" value="${esc(b.preferredMax)}" placeholder="690,000"></label>
+      ${inv ? `<label class="field"><span>Target gross yield (%)</span><input id="b-yield" type="number" min="0" step="0.1" data-b="targetYield" value="${esc(b.targetYield)}" placeholder="4.5"></label>` : ""}
     </div>
-    <p class="small muted">Ceiling: ${fmt(parseMoney(b.ceiling))}. Preferred: ${fmt(parseMoney(b.preferredMax))}. Spending under the preferred figure keeps borrowing capacity free; it scores higher.</p>
+    <p class="small muted">Ceiling ${fmt(parseMoney(b.ceiling))}, preferred ${fmt(parseMoney(b.preferredMax))}. Properties under the preferred figure score higher.${inv ? " Gross yield is weekly rent × 52 ÷ price." : ""}</p>
   </div>
 
   <div class="card">
     <h3>Property must-haves</h3>
+    <div class="row">${PROPERTY_TYPES.map(([v, l]) => `<label class="check"><input id="t-${v}" type="checkbox" data-type="${v}"${b.types.includes(v) ? " checked" : ""}> ${esc(l)}</label>`).join("")}</div>
     <div class="grid3">
-      <label class="field"><span>Bedrooms (min)</span><input id="b-beds" type="number" min="1" data-b="beds" value="${esc(b.beds)}"></label>
-      <label class="field"><span>Bathrooms (min)</span><input id="b-baths" type="number" min="1" data-b="baths" value="${esc(b.baths)}"></label>
-      <label class="field"><span>Usable land min (m²)</span><input id="b-landmin" type="number" min="0" step="10" data-b="landMin" value="${esc(b.landMin)}"></label>
-      <label class="field"><span>Usable land target max (m²)</span><input id="b-landmax" type="number" min="0" step="10" data-b="landMax" value="${esc(b.landMax)}" placeholder="optional"></label>
-      <label class="field"><span>Pool</span><select id="b-pool" data-b="pool">${opt([["required", "Required"], ["buildable", "Preferred, or room to build one"], ["preferred", "Nice to have"], ["none", "Not needed"]], b.pool)}</select></label>
-      <label class="field"><span>Train station within (km)</span><input id="b-train" type="number" min="0" step="0.5" data-b="trainKm" value="${esc(b.trainKm)}"></label>
-      <label class="field"><span>School or anchor</span><input id="b-school" type="text" data-b="school" value="${esc(b.school)}" placeholder="e.g. a school, workplace"></label>
+      <label class="field"><span>Bedrooms (min)</span><input id="b-beds" type="number" min="0" data-b="beds" value="${esc(b.beds)}"></label>
+      <label class="field"><span>Bathrooms (min)</span><input id="b-baths" type="number" min="0" data-b="baths" value="${esc(b.baths)}"></label>
+      <label class="field"><span>Land min (m²)</span><input id="b-landmin" type="number" min="0" step="10" data-b="landMin" value="${esc(b.landMin)}" placeholder="optional"></label>
+      <label class="field"><span>Pool</span><select id="b-pool" data-b="pool">${opt([["none", "Not needed"], ["preferred", "Nice to have"], ["buildable", "Preferred, or room to build one"], ["required", "Required"]], b.pool)}</select></label>
+      <label class="field"><span>Train station within (km)</span><input id="b-train" type="number" min="0" step="0.5" data-b="trainKm" value="${esc(b.trainKm)}" placeholder="optional"></label>
+      <label class="field"><span>Near (school, shops, work)</span><input id="b-school" type="text" data-b="school" value="${esc(b.school)}" placeholder="optional"></label>
       <label class="field"><span>Within (km)</span><input id="b-schoolkm" type="number" min="0" step="0.5" data-b="schoolKm" value="${esc(b.schoolKm)}"></label>
     </div>
     <div class="row">
@@ -456,80 +642,152 @@ function renderBrief() {
       <label class="check"><input id="b-battery" type="checkbox" data-b="battery"${b.battery ? " checked" : ""}> Battery</label>
       <label class="check"><input id="b-rain" type="checkbox" data-b="rain"${b.rain ? " checked" : ""}> Rainwater tank</label>
     </div>
-    <label class="field"><span>Other must-haves and deal-breakers</span><textarea id="b-must" data-b="mustHaves" placeholder="e.g. Workshop for a home studio. No battle-axe blocks.">${esc(b.mustHaves)}</textarea></label>
-  </div>
-
-  <div class="card">
-    <div class="row between"><h3>Search corridor</h3><span class="small muted">${b.suburbs.length} suburb${b.suburbs.length === 1 ? "" : "s"}</span></div>
-    <div class="row">${suburbChips}</div>
-    <form class="row" id="subForm">
-      <input id="subInput" type="text" placeholder="Suburb, state and postcode, e.g. Griffin QLD 4503" style="flex:1 1 260px">
-      <button class="btn" type="submit">Add suburb</button>
-    </form>
-    <div class="row small"><span class="muted">Quick add:</span>${Object.keys(PRESETS).map(k => `<button class="btn sm" type="button" data-act="preset" data-k="${esc(k)}">${esc(k)}</button>`).join("")}${b.suburbs.length ? `<button class="btn sm ghost danger" type="button" data-act="clearsubs">Clear all</button>` : ""}</div>
-    <p class="small muted">Include the postcode so listing-site links resolve to the right suburb.</p>
+    <label class="field"><span>Other must-haves and deal-breakers</span><textarea id="b-must" data-b="mustHaves" placeholder="e.g. No battle-axe blocks. Low body corporate fees.">${esc(b.mustHaves)}</textarea></label>
   </div>
 
   <div class="card">
     <h3>How this tool works</h3>
     <ul class="rules">
-      <li>Set target, limit and walk-away for each property <b>before</b> you inspect, from comparable sales, not the asking price.</li>
+      <li>Set an opening offer, target, limit and walk-away for each property <b>before</b> you inspect. Base them on comparable sales, not the asking price.</li>
       <li>A guide above your walk-away is a pass unless the vendor moves. The tool flags it red.</li>
-      <li>Use public sources only: listing portals, auction results, public notices and agent sites.</li>
-      <li>Off-market, distressed and paid-data-style claims stay marked <b>unverified</b> until you confirm them from a public source.</li>
+      ${inv ? "<li>Check the rent with a local property manager before relying on the yield.</li>" : ""}
+      <li>Searches use public listing data only. Mortgagee, estate and other distressed signals are read from the listing text; confirm them before you rely on them.</li>
       <li>Check flood on the current and future council maps, and get an insurance quote for the actual address.</li>
-      <li>This tool only records and compares. It does not contact agents or make offers.</li>
+      <li>This tool only searches, records and compares. It does not contact agents or make offers.</li>
     </ul>
   </div>
+  <div class="row">${searchBtn("Run search")}</div>
 </section>`;
 }
 
 function renderSearch() {
-  const b = state.brief;
-  if (!b.suburbs.length) return `<section class="panel"><div class="card empty"><h2>No suburbs in your brief</h2><p>Add the suburbs you want to search and the links will appear here.</p><button class="btn primary" type="button" data-tab-go="brief">Open the brief</button></div></section>`;
-  const L = searchLinks(b);
-  const a = (href, text) => `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(text)}</a>`;
-  const leadRows = L.leads.map(([label, q]) => `<div class="linkrow"><span class="what">${esc(label)}</span><span class="go">${L.groups.map((grp, i) => a(L.g(`${q} ${L.area(grp)}`), L.groups.length > 1 ? `Group ${i + 1}: ${grp.map(s => s.name).join(", ")}` : "Search")).join("")}</span></div>`).join("");
-  const perSuburb = L.subs.map(s => `<tr><td>${esc(s.name)} <span class="muted small">${esc(s.pc)}</span></td>
-    <td>${a(L.g(`"${s.name}" ${s.state} house ${L.featureTerms} for sale`), "Feature search")}</td>
-    <td>${a(L.g(`"${s.name}" ${s.state} flood map council`), "Flood map")}</td>
-    <td>${a(L.g(`"${s.name}" ${s.state} auction results`), "Auction results")}</td></tr>`).join("");
-  const missingPc = L.subs.filter(s => !s.pc).length;
+  const b = state.brief, L = b.suburbs.length ? portalLinks(b) : null, r = state.results;
+  const typeNames = b.types.map(t => (PROPERTY_TYPES.find(x => x[0] === t) || [t, t])[1]).join(", ") || "House";
+  const summary = `${typeNames}, ${b.beds || 0}+ bed, ${b.baths || 0}+ bath${parseMoney(b.ceiling) ? ", up to " + fmt(parseMoney(b.ceiling)) : ""} in ${b.suburbs.length} suburb${b.suburbs.length === 1 ? "" : "s"}`;
+  let notice = "";
+  if (searchError) {
+    if (searchError.kind === "setup") notice = `<div class="notice warn"><b>Searching isn't connected yet.</b><p class="small">Add a search service address or your own Domain API key under <b>Search connection</b> below.</p></div>`;
+    else if (searchError.kind === "network") notice = `<div class="notice bad"><b>Couldn't reach the search service.</b><p class="small">Check your internet connection. If you're using your own API key, your browser may be blocking direct calls to Domain; set up the free relay instead (see the steps below).</p></div>`;
+    else {
+      const s = searchError.status;
+      const why = s === 401 || s === 403 ? "The API key was refused. Check that it's correct and that your Domain developer project includes the Listings Management (or Agents & Listings) API."
+        : s === 429 ? "The daily search limit has been reached. Try again tomorrow."
+        : s === 400 ? "The search was rejected. Check that each suburb has a state and postcode." : "The search service returned an error.";
+      notice = `<div class="notice bad"><b>Search failed (error ${esc(s)}).</b><p class="small">${esc(why)}</p>${searchError.message ? `<p class="small muted num">${esc(searchError.message)}</p>` : ""}</div>`;
+    }
+  }
+  const relayConnected = !!searchUrl();
   return `<section class="panel">
   <div class="card">
-    <div><h2>Listing searches</h2><p class="muted small">Built from your brief: houses, ${b.beds}+ bed${parseMoney(b.ceiling) ? ", up to " + fmt(parseMoney(b.ceiling)) : ""}${b.landMin ? ", " + b.landMin + " m²+ land" : ""}, ${L.subs.length} suburbs. Each opens in a new tab.</p></div>
-    ${missingPc ? `<p class="chip warn">${missingPc} suburb${missingPc > 1 ? "s have" : " has"} no postcode, so portal links may not match.</p>` : ""}
-    <div class="links">
-      <div class="linkrow"><span class="what">For sale</span><span class="go">${a(L.rea, "realestate.com.au")} ${a(L.domain, "Domain")}</span></div>
-      <div class="linkrow"><span class="what">Sold comparables</span><span class="go">${a(L.reaSold, "realestate.com.au sold")} ${a(L.domainSold, "Domain sold")}</span></div>
-      <div class="linkrow"><span class="what">Flood</span><span class="go">${a("https://floodcheck.information.qld.gov.au/", "Queensland FloodCheck")} <span class="small muted">Also check your council's flood overlay for each address.</span></span></div>
+    <div><h2>Search</h2><p class="muted small">Searches every suburb in your brief at once and shows all the results on one page, scored against your brief.</p></div>
+    ${b.suburbs.length ? `<p><b>${esc(summary)}</b></p>` : `<div class="notice warn"><b>No suburbs in your brief.</b><p class="small">Add the suburbs you want to search first.</p><div><button class="btn sm" type="button" data-tab-go="brief">Open the brief</button></div></div>`}
+    <div class="row">
+      ${searchBtn("Run search")}
+      ${r ? `<button class="btn" type="button" data-tab-go="results">View last results (${r.items.length})</button><span class="small muted">Last searched ${esc(new Date(r.at).toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" }))}</span>` : ""}
     </div>
-    <label class="check"><input id="s-uo" type="checkbox" data-b="includeUnderOffer"${b.includeUnderOffer ? " checked" : ""}> Include under-offer listings (useful for watching fall-overs)</label>
+    <label class="check"><input id="s-uo" type="checkbox" data-b="includeUnderOffer"${b.includeUnderOffer ? " checked" : ""}> Include listings under offer (useful for watching sales that fall over)</label>
+    ${notice}
   </div>
 
   <div class="card">
-    <div><h2>Lead searches</h2><p class="muted small">Public web searches for mortgagee, estate, auction, off-market and stale listings in your corridor. Record anything you find as a property with its lead type; leave it unverified until a public listing confirms it.</p></div>
-    <div class="links">${leadRows}</div>
+    <div class="row between"><h3>Search connection</h3><span class="chip ${canSearch() ? "good" : "warn"}">${canSearch() ? (relayConnected ? "Connected via search service" : "Using your API key") : "Not connected"}</span></div>
+    <p class="small muted">Results come from Domain's official listings API. Use a search service someone has set up for you, or your own free Domain developer key. Both are saved only in this browser.</p>
+    <div class="grid2">
+      <label class="field"><span>Search service address</span><input id="set-url" type="url" data-set="searchUrl" value="${esc(state.settings.searchUrl)}" placeholder="${esc(DEFAULT_SEARCH_URL || "https://property-search.example.workers.dev")}"></label>
+      <label class="field"><span>Or your own Domain API key</span><input id="set-key" type="password" data-set="apiKey" value="${esc(state.settings.apiKey)}" placeholder="key_…" autocomplete="off"></label>
+    </div>
+    <details class="more"><summary>How to get connected</summary>
+      <ol class="rules small" style="margin-top:10px">
+        <li>Create a free account at <a href="https://developer.domain.com.au" target="_blank" rel="noopener">developer.domain.com.au</a>, create a project, add the <b>Listings Management</b> (or <b>Agents &amp; Listings</b>) API, and create an API key.</li>
+        <li>Paste the key above and press <b>Run search</b>. If it says the browser blocked the call, use step 3.</li>
+        <li>To let anyone use your app without their own key, deploy the free relay in the project's <code>relay</code> folder to Cloudflare Workers and put its address in <b>Search service address</b>.</li>
+      </ol>
+    </details>
   </div>
 
+  ${L ? `<div class="card">
+    <h3>Check the portals by hand</h3>
+    <p class="small muted">Some listings appear on only one portal. These open the same search on each site.</p>
+    <div class="row"><a class="btn sm" href="${esc(L.rea)}" target="_blank" rel="noopener">realestate.com.au</a><a class="btn sm" href="${esc(L.domain)}" target="_blank" rel="noopener">Domain</a></div>
+  </div>` : ""}
+</section>`;
+}
+
+let resSort = "fit", resHide = false, resQuery = "";
+function renderResults() {
+  const r = state.results;
+  if (!r) return `<section class="panel"><div class="card empty"><h2>No results yet</h2><p>Run a search to see every matching listing here on one page.</p>${searchBtn("Run search", "primary")}</div></section>`;
+  const tracked = new Set(state.props.map(p => p.listingId).filter(Boolean));
+  let items = r.items.map(it => ({ it, A: assess(resultAsProp(it)) }));
+  const counts = { total: items.length, fit: items.filter(x => !x.A.flags.length).length, isNew: items.filter(x => x.it.isNew).length, changed: items.filter(x => x.it.wasPrice).length, signals: items.filter(x => x.it.signals.length).length };
+  if (resHide) items = items.filter(x => !x.A.flags.length);
+  if (resQuery) { const q = resQuery.toLowerCase(); items = items.filter(x => `${x.it.address} ${x.it.suburb} ${x.it.headline}`.toLowerCase().includes(q)); }
+  const sorters = {
+    fit: (a, b) => (a.A.flags.length - b.A.flags.length) || (b.A.score - a.A.score),
+    priceAsc: (a, b) => (a.it.priceNum ?? 9e9) - (b.it.priceNum ?? 9e9),
+    priceDesc: (a, b) => (b.it.priceNum ?? -1) - (a.it.priceNum ?? -1),
+    newest: (a, b) => (b.it.dateListed || "").localeCompare(a.it.dateListed || ""),
+    oldest: (a, b) => (a.it.dateListed || "~").localeCompare(b.it.dateListed || "~"),
+    land: (a, b) => (+b.it.land || 0) - (+a.it.land || 0),
+  };
+  items.sort(sorters[resSort] || sorters.fit);
+  const card = ({ it, A }) => {
+    const tone = A.flags.length ? "bad" : A.score >= 75 ? "good" : A.score >= 50 ? "warn" : "info";
+    const badges = [it.isNew ? `<span class="chip good">New</span>` : "", it.wasPrice ? `<span class="chip warn">Price changed</span>` : ""].join("");
+    const facts = [it.beds !== "" && `<span><b>${esc(it.beds)}</b> bed</span>`, it.baths !== "" && `<span><b>${esc(it.baths)}</b> bath</span>`, it.cars !== "" && `<span><b>${esc(it.cars)}</b> car</span>`, it.land !== "" && `<span><b>${esc(it.land)}</b> m²</span>`, it.type && `<span>${esc(it.type)}</span>`].filter(Boolean).join("");
+    const where = [it.address, it.suburb, it.state].filter(Boolean).join(", ");
+    return `<article class="res${A.flags.length ? " miss" : ""}">
+      <div class="ph">${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="noimg">No photo</span>`}<div class="badges">${badges}</div></div>
+      <div class="inner">
+        <div class="row between" style="align-items:start;flex-wrap:nowrap"><div style="min-width:0"><div class="addr">${esc(it.address)}</div><div class="small muted">${esc([it.suburb, it.state, it.pc].filter(Boolean).join(" "))}</div></div>
+          <div class="score"><div class="big" style="color:var(--${tone})">${A.score}</div><div class="label">fit</div></div></div>
+        <div class="price">${esc(it.priceText)}${it.wasPrice ? ` <span class="small muted">was ${esc(it.wasPrice)}</span>` : ""}</div>
+        <div class="facts">${facts}</div>
+        <div class="chips">${A.flags.map(f => `<span class="chip bad">${esc(f)}</span>`).join("")}${it.signals.map(s => `<span class="chip info">${esc(s)}</span>`).join("")}${A.pros.filter(p => !/bed$|m²$/.test(p)).map(p => `<span class="chip">${esc(p)}</span>`).join("")}</div>
+        ${it.dom !== "" ? `<p class="small muted">Listed ${it.dom === 0 ? "today" : it.dom + " days ago"}</p>` : ""}
+        <div class="links">
+          <a class="btn sm primary" href="${esc(it.url)}" target="_blank" rel="noopener">View listing</a>
+          <a class="btn sm" href="${esc(g(where + " site:realestate.com.au"))}" target="_blank" rel="noopener">Find on realestate.com.au</a>
+          ${tracked.has(it.id) ? `<span class="chip accent">Tracking</span>` : `<button class="btn sm" type="button" data-act="track" data-id="${esc(it.id)}">Track</button>`}
+        </div>
+      </div>
+    </article>`;
+  };
+  const gone = (r.gone || []).map(x => `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.address)}</a>${x.suburb ? ", " + esc(x.suburb) : ""} <span class="muted">(${esc(x.priceText)})</span></li>`).join("");
+  return `<section class="panel">
   <div class="card">
-    <h2>By suburb</h2>
-    <div class="tablewrap"><table><thead><tr><th>Suburb</th><th>Listings with your features</th><th>Flood</th><th>Recent results</th></tr></thead><tbody>${perSuburb}</tbody></table></div>
+    <div class="row between"><div><h2>Search results</h2><p class="small muted">Searched ${esc(new Date(r.at).toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" }))} across ${r.suburbs} suburb${r.suburbs === 1 ? "" : "s"}. Features such as pool, shed and solar are read from the listing text, so check the listing itself.</p></div>
+      ${searchBtn("Search again", "primary")}</div>
+    <div class="statline">
+      <div class="stat"><b>${counts.total}</b><span class="small muted">listings</span></div>
+      <div class="stat"><b>${counts.fit}</b><span class="small muted">meet every must-have</span></div>
+      ${r.first ? "" : `<div class="stat"><b>${counts.isNew}</b><span class="small muted">new since last search</span></div><div class="stat"><b>${counts.changed}</b><span class="small muted">price changes</span></div><div class="stat"><b>${(r.gone || []).length}</b><span class="small muted">no longer listed</span></div>`}
+      <div class="stat"><b>${counts.signals}</b><span class="small muted">auction, distressed or stale</span></div>
+    </div>
+    <div class="row" style="align-items:end">
+      <label class="field" style="flex:0 1 220px"><span>Sort by</span><select id="r-sort" data-ui="sort">${opt([["fit", "Best fit"], ["priceAsc", "Price: low to high"], ["priceDesc", "Price: high to low"], ["newest", "Newest listings"], ["oldest", "Longest on market"], ["land", "Largest land"]], resSort)}</select></label>
+      <label class="field" style="flex:1 1 220px"><span>Filter</span><input id="r-q" type="search" data-ui="q" value="${esc(resQuery)}" placeholder="Street, suburb or keyword"></label>
+      <label class="check" style="padding-bottom:8px"><input id="r-hide" type="checkbox" data-ui="hide"${resHide ? " checked" : ""}> Only show listings that meet every must-have</label>
+    </div>
   </div>
+  ${items.length ? `<div class="results">${items.map(card).join("")}</div>` : `<div class="card empty"><p>No listings match. ${resHide || resQuery ? "Clear the filter to see everything." : "Try more suburbs, a higher ceiling or fewer bedrooms."}</p></div>`}
+  ${gone ? `<div class="card"><h3>No longer in the results</h3><p class="small muted">These were in your last search. They may be under offer, sold or withdrawn, or the price moved outside your range.</p><ul class="rules small">${gone}</ul></div>` : ""}
 </section>`;
 }
 
 function propCard(p) {
-  const A = assess(p), v = bandVerdict(p, A.price);
+  const A = assess(p), v = bandVerdict(p, A.price), inv = state.brief.purpose === "investment";
   const scoreTone = A.flags.length ? "bad" : A.score >= 75 ? "good" : A.score >= 50 ? "warn" : "info";
   const statusTone = { "Active": "good", "Relisted": "good", "Under offer": "warn", "Under contract": "warn", "Sold": "bad", "Withdrawn": "bad" }[p.status] || "info";
   const facts = [
     p.price && `<span><b>${esc(p.price)}</b></span>`,
     p.beds !== "" && `<span><b>${esc(p.beds)}</b> bed</span>`, p.baths !== "" && `<span><b>${esc(p.baths)}</b> bath</span>`, p.cars !== "" && `<span><b>${esc(p.cars)}</b> car</span>`,
-    p.land !== "" && `<span><b>${esc(p.land)}</b> m²</span>`, p.dom !== "" && `<span><b>${esc(p.dom)}</b> days listed</span>`,
+    p.land !== "" && `<span><b>${esc(p.land)}</b> m²</span>`, inv && p.rent !== "" && `<span><b>$${esc(p.rent)}</b>/wk rent</span>`,
+    A.yld !== null && `<span><b>${A.yld.toFixed(1)}%</b> gross yield</span>`, p.dom !== "" && `<span><b>${esc(p.dom)}</b> days listed</span>`,
   ].filter(Boolean).join("");
-  const dd = DD_ITEMS.map(([k, l]) => `<label class="check small"><input id="dd-${p.id}-${k}" type="checkbox" data-pid="${p.id}" data-dd="${k}"${p.dd[k] ? " checked" : ""}> ${esc(l)}</label>`).join("");
-  const ddDone = DD_ITEMS.filter(([k]) => p.dd[k]).length;
+  const items = ddItems();
+  const dd = items.map(([k, l]) => `<label class="check small"><input id="dd-${p.id}-${k}" type="checkbox" data-pid="${p.id}" data-dd="${k}"${p.dd[k] ? " checked" : ""}> ${esc(l)}</label>`).join("");
+  const ddDone = items.filter(([k]) => p.dd[k]).length;
   const comps = p.comps.map((c, i) => `<tr><td><input id="c-${p.id}-${i}-a" type="text" data-pid="${p.id}" data-comp="${i}" data-cf="addr" value="${esc(c.addr)}" aria-label="Comparable address"></td>
     <td><input id="c-${p.id}-${i}-p" type="text" data-pid="${p.id}" data-comp="${i}" data-cf="price" value="${esc(c.price)}" aria-label="Sold price"></td>
     <td><input id="c-${p.id}-${i}-d" type="date" data-pid="${p.id}" data-comp="${i}" data-cf="date" value="${esc(c.date)}" aria-label="Sold date"></td>
@@ -541,7 +799,6 @@ function propCard(p) {
   const bf = (k, label) => `<label class="field"><span>${label}</span><input id="p-${p.id}-b-${k}" type="text" inputmode="decimal" data-pid="${p.id}" data-band="${k}" value="${esc(p.bands[k])}" placeholder="—"></label>`;
   const sel = (k, label, list) => `<label class="field"><span>${label}</span><select id="p-${p.id}-${k}" data-pid="${p.id}" data-pf="${k}">${opt(list, p[k])}</select></label>`;
   const hist = p.history.slice(-6).reverse().map(h => `<li><span class="num small">${esc(h.date)}</span> ${esc(h.field)}: ${esc(h.from || "—")} → <b>${esc(h.to || "—")}</b>${h.source ? ` · <a href="${esc(h.source)}" target="_blank" rel="noopener">source</a>` : ""}</li>`).join("");
-  const g = (q) => "https://www.google.com/search?q=" + encodeURIComponent(q);
   const where = [p.address, p.suburb].filter(Boolean).join(", ");
   return `<article class="prop tier-${p.tier}" id="prop-${p.id}">
   <div class="head">
@@ -556,7 +813,7 @@ function propCard(p) {
     <div class="chips">${A.flags.map(x => `<span class="chip bad">${esc(x)}</span>`).join("")}${A.pros.map(x => `<span class="chip">${esc(x)}</span>`).join("")}</div>
     <div class="ruler">${rulerHTML(p, A.price)}<p class="verdict" style="color:var(--${v.tone === "info" ? "muted" : v.tone})">${esc(v.text)}</p></div>
     ${p.notes ? `<p class="small">${esc(p.notes)}</p>` : ""}
-    <p class="small muted">Due diligence ${ddDone}/${DD_ITEMS.length}${median ? ` · Comparable median ${fmt(median)} (${compPrices.length})` : ""}${p.flood ? ` · Flood: ${esc(p.flood)}` : ""}</p>
+    <p class="small muted">Due diligence ${ddDone}/${items.length}${median ? ` · Comparable median ${fmt(median)} (${compPrices.length})` : ""}${p.flood ? ` · Flood: ${esc(p.flood)}` : ""}${p.url ? ` · <a href="${esc(p.url)}" target="_blank" rel="noopener">View listing</a>` : ""}</p>
   </div>
   <details${openCards.has(p.id) ? " open" : ""} data-card="${p.id}">
     <summary>Edit details, bands and due diligence</summary>
@@ -565,13 +822,14 @@ function propCard(p) {
         ${f("address", "Address")}${f("suburb", "Suburb")}
         ${sel("tier", "Tier", Object.entries(TIERS))}${sel("status", "Status", STATUSES.map(s => [s, s]))}
         ${sel("lead", "Lead type", Object.entries(LEAD_TYPES))}
-        ${f("price", "Price guide", "text", 'placeholder="e.g. $1.12-1.13m"')}
+        ${f("price", "Price guide", "text", 'placeholder="e.g. $615-630k"')}
+        ${inv ? f("rent", "Weekly rent estimate ($)", "number", 'min="0"') : ""}
         ${f("beds", "Beds", "number", 'min="0"')}${f("baths", "Baths", "number", 'min="0"')}${f("cars", "Car spaces", "number", 'min="0"')}
-        ${f("land", "Usable land m²", "number", 'min="0"')}${f("dom", "Days on market", "number", 'min="0"')}
+        ${f("land", "Land m²", "number", 'min="0"')}${f("dom", "Days on market", "number", 'min="0"')}
         ${sel("pool", "Pool", [["unknown", "Unknown"], ["yes", "Yes"], ["buildable", "No, but buildable"], ["no", "No, not buildable"]])}
         ${sel("access", "Side/rear access", [["unknown", "Unknown"], ["yes", "Yes"], ["no", "No"]])}
         ${sel("shed", "Shed", [["unknown", "Unknown"], ["powered", "Powered"], ["unpowered", "Unpowered"], ["none", "None"]])}
-        ${f("trainKm", "Train station km", "number", 'min="0" step="0.1"')}${f("schoolKm", (state.brief.school || "Anchor") + " km", "number", 'min="0" step="0.1"')}
+        ${f("trainKm", "Train station km", "number", 'min="0" step="0.1"')}${f("schoolKm", esc(state.brief.school || "Anchor") + " km", "number", 'min="0" step="0.1"')}
       </div>
       <div class="row">
         <label class="check"><input id="p-${p.id}-solar" type="checkbox" data-pid="${p.id}" data-pb="solar"${p.solar ? " checked" : ""}> Solar</label>
@@ -603,8 +861,7 @@ function propCard(p) {
 }
 
 const openCards = new Set();
-let confirmDel = null;
-let propFilter = "all";
+let confirmDel = null, propFilter = "all";
 function renderProps() {
   const order = ["priority", "candidate", "watch", "downgraded", "outside"];
   const list = state.props.filter(p => propFilter === "all" || p.tier === propFilter)
@@ -613,22 +870,20 @@ function renderProps() {
   const filters = [["all", "All", state.props.length]].concat(order.map(t => [t, TIERS[t], counts[t]])).filter(x => x[0] === "all" || x[2])
     .map(([k, l, n]) => `<button class="btn sm${propFilter === k ? " primary" : ""}" type="button" data-act="filter" data-k="${k}">${esc(l)} <span class="num">${n}</span></button>`).join("");
   return `<section class="panel">
-  <div class="row between"><div><h2>Properties</h2><p class="small muted">Sorted by tier, then fit to your brief. Bands show where the guide sits.</p></div>
+  <div class="row between"><div><h2>My properties</h2><p class="small muted">Properties you're tracking, sorted by tier then fit. Press <b>Track</b> on a search result, or add one by hand.</p></div>
     <button class="btn primary" type="button" data-act="addprop">Add property</button></div>
   <div class="row">${filters}</div>
-  <div class="props">${list.map(propCard).join("") || `<div class="card empty"><h3>No properties yet</h3><p>Add a listing you've found, or open Search for links built from your brief.</p></div>`}</div>
+  <div class="props">${list.map(propCard).join("") || `<div class="card empty"><h3>Nothing tracked yet</h3><p>Run a search and press Track on the listings you like, or add a property by hand.</p></div>`}</div>
 </section>`;
 }
 
 /* ---------- watch run ---------- */
 let draftRun = null;
-function startRun() {
-  draftRun = { date: today(), notes: "", rows: Object.fromEntries(state.props.filter(p => !["outside"].includes(p.tier)).map(p => [p.id, { price: p.price, status: p.status, dom: p.dom, source: "", checked: false }])) };
-}
+function startRun() { draftRun = { date: today(), notes: "", rows: {} }; }
 function renderRun() {
   const last = state.runs[state.runs.length - 1];
   if (!draftRun) startRun();
-  state.props.forEach(p => { if (!draftRun.rows[p.id] && p.tier !== "outside") draftRun.rows[p.id] = { price: p.price, status: p.status, dom: p.dom, source: "", checked: false }; });
+  state.props.forEach(p => { if (!draftRun.rows[p.id] && p.tier !== "outside") draftRun.rows[p.id] = { price: p.price, status: p.status, dom: p.dom, source: p.url || "", checked: false }; });
   const rows = state.props.filter(p => draftRun.rows[p.id]).map(p => {
     const r = draftRun.rows[p.id];
     return `<tr>
@@ -639,16 +894,14 @@ function renderRun() {
       <td><input id="r-${p.id}-src" type="url" data-rid="${p.id}" data-rf="source" value="${esc(r.source)}" placeholder="https://" aria-label="Source link"></td>
     </tr>`;
   }).join("");
-  const newSince = last ? state.props.filter(p => p.added > last.date).length : 0;
   const pastRuns = state.runs.slice().reverse().map(r => `<tr><td class="num">${esc(r.date)}</td><td class="num">${r.checked}</td><td class="num">${r.changes.length}</td><td>${esc(r.notes)}</td></tr>`).join("");
   return `<section class="panel">
   <div class="card">
-    <div class="row between"><div><h2>Watch run</h2><p class="small muted">${last ? `Last run ${esc(last.date)}.` : "No runs yet."} Open each listing, record today's guide and status, paste the source link, and tick it off. Saving records every change against the property.</p></div>
+    <div class="row between"><div><h2>Watch run</h2><p class="small muted">${last ? `Last run ${esc(last.date)}.` : "No runs yet."} Run a search first: tracked listings still on the market update their price automatically. Then confirm each status, tick it off, and save.</p></div>
       <label class="field" style="max-width:170px"><span>Run date</span><input id="run-date" type="date" data-run="date" value="${esc(draftRun.date)}"></label></div>
-    ${newSince ? `<p class="chip info">${newSince} propert${newSince > 1 ? "ies" : "y"} added since the last run will be reported as new candidates.</p>` : ""}
-    <div class="tablewrap"><table><thead><tr><th>Property</th><th>Price guide</th><th>Status</th><th>Days</th><th>Source</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="muted">Add properties first.</td></tr>`}</tbody></table></div>
-    <label class="field"><span>Run notes (new leads seen, market notes)</span><textarea id="run-notes" data-run="notes">${esc(draftRun.notes)}</textarea></label>
-    <div class="row"><button class="btn primary" type="button" data-act="saverun">Save run</button><button class="btn" type="button" data-act="resetrun">Reset</button><button class="btn ghost" type="button" data-tab-go="search">Open search links</button></div>
+    <div class="tablewrap"><table><thead><tr><th>Property</th><th>Price guide</th><th>Status</th><th>Days</th><th>Source</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="muted">Track some properties first.</td></tr>`}</tbody></table></div>
+    <label class="field"><span>Run notes</span><textarea id="run-notes" data-run="notes">${esc(draftRun.notes)}</textarea></label>
+    <div class="row"><button class="btn primary" type="button" data-act="saverun">Save run</button><button class="btn" type="button" data-act="resetrun">Reset</button>${searchBtn("Run search first", "ghost")}</div>
   </div>
   ${pastRuns ? `<div class="card"><h3>Past runs</h3><div class="tablewrap"><table><thead><tr><th>Date</th><th class="num">Checked</th><th class="num">Changes</th><th>Notes</th></tr></thead><tbody>${pastRuns}</tbody></table></div></div>` : ""}
 </section>`;
@@ -674,14 +927,28 @@ function saveRun() {
 
 /* ---------- report ---------- */
 function buildReport() {
-  const b = state.brief, runs = state.runs, last = runs[runs.length - 1], prev = runs[runs.length - 2];
+  const b = state.brief, runs = state.runs, last = runs[runs.length - 1], prev = runs[runs.length - 2], R = state.results;
   const L = [];
   const name = (p) => [p.address || "Untitled", p.suburb].filter(Boolean).join(", ");
-  L.push(`PROPERTY WATCH — ${last ? last.date : today()}`);
+  L.push(`PROPERTY WATCH — ${today()}`);
   if (b.name) L.push(b.name);
-  L.push(`Brief: ${b.beds}+ bed, ${b.landMin || "?"}${b.landMax ? "–" + b.landMax : "+"} m², ceiling ${fmt(parseMoney(b.ceiling))}${b.preferredMax ? ", prefer ≤ " + fmt(parseMoney(b.preferredMax)) : ""}. Corridor: ${b.suburbs.map(s => parseSuburb(s).name).join(", ") || "not set"}.`);
+  L.push(`Brief: ${b.purpose === "investment" ? "investment, " : ""}${b.beds}+ bed, ${b.baths}+ bath${b.landMin ? ", " + b.landMin + "+ m²" : ""}, ceiling ${fmt(parseMoney(b.ceiling))}${b.preferredMax ? ", prefer ≤ " + fmt(parseMoney(b.preferredMax)) : ""}${b.purpose === "investment" && b.targetYield ? ", target yield " + b.targetYield + "%" : ""}. Suburbs: ${b.suburbs.map(s => parseSuburb(s).name).join(", ") || "not set"}.`);
   L.push("");
-  L.push(`WHAT CHANGED${prev ? " SINCE " + prev.date : ""}`);
+  if (R) {
+    L.push(`LATEST SEARCH (${new Date(R.at).toLocaleDateString("en-AU")})`);
+    const scored = R.items.map(it => ({ it, A: assess(resultAsProp(it)) }));
+    L.push(`- ${R.items.length} listings, ${scored.filter(x => !x.A.flags.length).length} meet every must-have.`);
+    if (!R.first) {
+      const nw = scored.filter(x => x.it.isNew), ch = scored.filter(x => x.it.wasPrice);
+      L.push(`- New since last search: ${nw.length}. Price changes: ${ch.length}. No longer listed: ${(R.gone || []).length}.`);
+      ch.forEach(x => L.push(`  • ${x.it.address}, ${x.it.suburb}: ${x.it.wasPrice} → ${x.it.priceText} (${x.it.url})`));
+      (R.gone || []).slice(0, 10).forEach(x => L.push(`  • Gone: ${x.address}, ${x.suburb} (${x.priceText})`));
+    }
+    const top = scored.filter(x => !x.A.flags.length).sort((a, b2) => b2.A.score - a.A.score).slice(0, 8);
+    if (top.length) { L.push("- Best matches:"); top.forEach(x => L.push(`  • ${x.it.address}, ${x.it.suburb} · ${x.it.priceText} · fit ${x.A.score}${x.it.isNew ? " · NEW" : ""}${x.it.signals.length ? " · " + x.it.signals.join(", ") : ""} · ${x.it.url}`)); }
+    L.push("");
+  }
+  L.push(`WATCH RUN CHANGES${prev ? " SINCE " + prev.date : ""}`);
   if (!last) L.push("- No watch run saved yet.");
   else if (!last.changes.length) L.push("- No price or status changes recorded.");
   else last.changes.forEach(c => { const p = state.props.find(x => x.id === c.pid); L.push(`- ${p ? name(p) : "Removed property"}: ${c.field} ${c.from || "—"} → ${c.to || "—"}${c.source ? " (" + c.source + ")" : ""}`); });
@@ -691,52 +958,39 @@ function buildReport() {
   if (!pri.length) L.push("- None marked priority.");
   pri.forEach(p => {
     const A = assess(p), v = bandVerdict(p, A.price), B = p.bands;
-    const bands = [["open", "open"], ["target", "target"], ["comfortable", "comfortable"], ["limit", "limit"], ["walk", "walk"]].filter(([k]) => B[k]).map(([k, l]) => `${l} ${fmt(parseMoney(B[k]))}`).join(", ");
-    L.push(`- ${name(p)} [${p.status}] fit ${A.score}${A.flags.length ? " · flags: " + A.flags.join(", ") : ""}`);
+    const bands = ["open", "target", "comfortable", "limit", "walk"].filter(k => B[k]).map(k => `${k} ${fmt(parseMoney(B[k]))}`).join(", ");
+    L.push(`- ${name(p)} [${p.status}] fit ${A.score}${A.yld !== null ? " · yield " + A.yld.toFixed(1) + "%" : ""}${A.flags.length ? " · flags: " + A.flags.join(", ") : ""}`);
     if (bands) L.push(`  Bands: ${bands}`);
     L.push(`  ${v.text}`);
-    const ddOpen = DD_ITEMS.filter(([k]) => !p.dd[k]).map(([, l]) => l.split(" (")[0]);
+    const ddOpen = ddItems().filter(([k]) => !p.dd[k]).map(([, l]) => l.split(" (")[0]);
     if (ddOpen.length) L.push(`  DD outstanding: ${ddOpen.slice(0, 4).join("; ")}${ddOpen.length > 4 ? "; +" + (ddOpen.length - 4) + " more" : ""}`);
-    if (p.sources[0]) L.push(`  Source: ${p.sources[p.sources.length - 1]}`);
+    if (p.url || p.sources[0]) L.push(`  Source: ${p.url || p.sources[p.sources.length - 1]}`);
   });
   L.push("");
-  L.push("NEW CANDIDATES WORTH INSPECTING");
-  const since = prev ? prev.date : null;
-  const cands = state.props.filter(p => p.tier === "candidate" || (since && p.added > since && p.tier !== "priority"))
-    .filter(p => !["Sold", "Withdrawn"].includes(p.status)).sort((a, b) => assess(b).score - assess(a).score);
-  if (!cands.length) L.push("- None recorded.");
-  cands.forEach(p => { const A = assess(p); L.push(`- ${name(p)} · ${p.price || "no guide"} · ${p.land || "?"} m² · fit ${A.score}${p.lead !== "mainstream" ? " · " + LEAD_TYPES[p.lead] : ""}${p.verified ? "" : " · UNVERIFIED"}${A.flags.length ? " · flags: " + A.flags.join(", ") : ""}${p.sources[0] ? " · " + p.sources[0] : ""}`); });
+  L.push("CANDIDATES");
+  const cands = state.props.filter(p => p.tier === "candidate" && !["Sold", "Withdrawn"].includes(p.status)).sort((a, b2) => assess(b2).score - assess(a).score);
+  if (!cands.length) L.push("- None tracked.");
+  cands.forEach(p => { const A = assess(p); L.push(`- ${name(p)} · ${p.price || "no guide"} · fit ${A.score}${p.lead !== "mainstream" ? " · " + LEAD_TYPES[p.lead] : ""}${p.verified ? "" : " · UNVERIFIED"}${A.flags.length ? " · flags: " + A.flags.join(", ") : ""}${p.url ? " · " + p.url : ""}`); });
   L.push("");
   L.push("WATCHLIST");
   const w = state.props.filter(p => p.tier === "watch");
   if (!w.length) L.push("- Empty.");
   w.forEach(p => L.push(`- ${name(p)} [${p.status}]${p.price ? " " + p.price : ""}${p.notes ? " — " + p.notes : ""}`));
-  const dg = state.props.filter(p => p.tier === "downgraded" || p.tier === "outside");
-  if (dg.length) { L.push(""); L.push("DOWNGRADED / OUTSIDE STRATEGY"); dg.forEach(p => L.push(`- ${name(p)}${p.notes ? " — " + p.notes : ""}`)); }
   if (last && last.notes) { L.push(""); L.push("RUN NOTES"); L.push(last.notes); }
   L.push("");
-  L.push("Public sources only. Unverified leads are marked. No agents contacted, no offers made.");
+  L.push("Public listing data only. Signals read from listing text are unconfirmed. No agents contacted, no offers made.");
   return L.join("\n");
 }
 function renderReport() {
   return `<section class="panel"><div class="card">
-    <div class="row between"><div><h2>Report</h2><p class="small muted">Plain-text summary of the latest run, ready to paste into an email or message.</p></div>
-      <div class="row"><button class="btn primary" type="button" data-act="copyreport">Copy</button><button class="btn" type="button" data-act="dlreport">Save as .md</button></div></div>
+    <div class="row between"><div><h2>Report</h2><p class="small muted">Plain-text summary of the latest search and watch run, ready to paste into an email or message.</p></div>
+      <div class="row"><button class="btn primary" type="button" data-act="copyreport">Copy</button><button class="btn" type="button" data-act="dlreport">Save as file</button></div></div>
     <pre class="report" id="reportText">${esc(buildReport())}</pre>
   </div></section>`;
 }
 
 /* ---------- export / import ---------- */
-let downloadsNS;
-const downloadsReady = (window.claude && typeof window.claude.use === "function") ? window.claude.use("downloads").then(d => (downloadsNS = d)).catch(() => null) : Promise.resolve(null);
-async function saveFile(filename, text, mime) {
-  await downloadsReady;
-  if (downloadsNS) {
-    try { await downloadsNS.save({ filename, data: text }); toast("Saved " + filename); }
-    catch (e) { if (e && e.code !== "declined") toast("Couldn't save the file here. Use Copy instead."); }
-    return;
-  }
-  if (window.claude) { toast("Saving files isn't available in this view. Use Copy instead."); return; }
+function saveFile(filename, text, mime) {
   const url = URL.createObjectURL(new Blob([text], { type: mime }));
   const a = Object.assign(document.createElement("a"), { href: url, download: filename });
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -745,7 +999,11 @@ async function copyText(text) {
   try { await navigator.clipboard.writeText(text); toast("Copied"); }
   catch { const el = $("#reportText"); if (el) { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } toast("Press Ctrl/Cmd+C to copy the selected text"); }
 }
-$("#exportBtn").addEventListener("click", () => saveFile(`property-watch-${today()}.json`, JSON.stringify(Object.assign({}, state, { example: false }), null, 2), "application/json"));
+$("#exportBtn").addEventListener("click", () => {
+  /* the API key stays in this browser; backups are meant to be shared */
+  const out = Object.assign({}, state, { example: false, settings: { searchUrl: state.settings.searchUrl, apiKey: "" } });
+  saveFile(`property-watch-${today()}.json`, JSON.stringify(out, null, 2), "application/json");
+});
 $("#importFile").addEventListener("change", (e) => {
   const file = e.target.files[0]; if (!file) return;
   const fr = new FileReader();
@@ -753,14 +1011,37 @@ $("#importFile").addEventListener("change", (e) => {
     try {
       const data = JSON.parse(fr.result);
       if (!data || !data.brief || !Array.isArray(data.props)) throw new Error("shape");
-      data.brief = Object.assign(blankBrief(), data.brief);
-      data.props = data.props.map(p => Object.assign(blankProp(), p, { bands: Object.assign(blankProp().bands, p.bands || {}) }));
-      data.runs = data.runs || []; data.example = false; data.tab = data.tab || "props";
-      state = data; draftRun = null; save(); render(); toast(`Imported ${data.props.length} properties`);
+      const keepKey = state.settings.apiKey;
+      state = normalise(Object.assign(data, { example: false, tab: data.tab || "props" }));
+      if (!state.settings.apiKey) state.settings.apiKey = keepKey;
+      draftRun = null; save(); render(); toast(`Imported ${state.props.length} properties`);
     } catch { toast("That file isn't a Property Watch backup."); }
     e.target.value = "";
   };
   fr.readAsText(file);
+});
+
+/* ---------- suburb type-ahead ---------- */
+let acItems = [], acIndex = -1;
+function addSuburbs(list) {
+  list.forEach(s => { s = s.trim(); if (s && !state.brief.suburbs.some(x => x.toLowerCase() === s.toLowerCase())) state.brief.suburbs.push(s); });
+  save(); render(); const i = $("#subInput"); if (i) i.focus();
+}
+function drawAc() {
+  const ul = $("#subList"), inp = $("#subInput"); if (!ul) return;
+  ul.hidden = !acItems.length; inp.setAttribute("aria-expanded", String(acItems.length > 0));
+  ul.innerHTML = acItems.map((s, i) => `<li role="option" id="ac-${i}" data-ac="${i}" aria-selected="${i === acIndex}"><span>${esc(s.n)} <span class="muted">${esc(s.s)}</span></span><span class="pc">${esc(s.p)}</span></li>`).join("");
+  if (acIndex >= 0) inp.setAttribute("aria-activedescendant", "ac-" + acIndex); else inp.removeAttribute("aria-activedescendant");
+}
+app.addEventListener("keydown", (e) => {
+  if (e.target.id !== "subInput" || !acItems.length) return;
+  if (e.key === "ArrowDown") { e.preventDefault(); acIndex = (acIndex + 1) % acItems.length; drawAc(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); acIndex = (acIndex - 1 + acItems.length) % acItems.length; drawAc(); }
+  else if (e.key === "Escape") { acItems = []; drawAc(); }
+});
+app.addEventListener("mousedown", (e) => {
+  const li = e.target.closest("[data-ac]"); if (!li) return;
+  e.preventDefault(); const s = acItems[+li.dataset.ac]; acItems = []; addSuburbs([subLabel(s)]);
 });
 
 /* ---------- events ---------- */
@@ -771,12 +1052,13 @@ app.addEventListener("click", (e) => {
   const go = e.target.closest("[data-tab-go]"); if (go) return setTab(go.dataset.tabGo);
   const el = e.target.closest("[data-act]"); if (!el) return;
   const act = el.dataset.act, pid = el.dataset.pid;
-  if (act === "fresh") { state = { v: 1, example: false, brief: blankBrief(), props: [], runs: [], tab: "brief" }; draftRun = null; }
+  if (act === "search") { if (!searching) runSearch(); return; }
+  if (act === "fresh") { state = normalise({ v: 2, example: false, brief: blankBrief(), props: [], runs: [], results: null, settings: state.settings, tab: "brief" }); draftRun = null; }
   else if (act === "keep") { state.example = false; }
   else if (act === "rmsub") { state.brief.suburbs.splice(+el.dataset.i, 1); }
   else if (act === "clearsubs") { state.brief.suburbs = []; }
-  else if (act === "preset") { PRESETS[el.dataset.k].forEach(s => { if (!state.brief.suburbs.includes(s)) state.brief.suburbs.push(s); }); }
   else if (act === "filter") { propFilter = el.dataset.k; }
+  else if (act === "track") { trackResult(el.dataset.id); }
   else if (act === "addprop") { const p = blankProp(); state.props.unshift(p); openCards.add(p.id); propFilter = "all"; save(); render(); const inp = $(`#p-${p.id}-address`); if (inp) inp.focus(); return; }
   else if (act === "askdel") { confirmDel = pid; }
   else if (act === "nodel") { confirmDel = null; }
@@ -786,23 +1068,29 @@ app.addEventListener("click", (e) => {
   else if (act === "saverun") { return saveRun(); }
   else if (act === "resetrun") { startRun(); }
   else if (act === "copyreport") { return copyText(buildReport()); }
-  else if (act === "dlreport") { return saveFile(`property-watch-report-${today()}.md`, buildReport(), "text/markdown"); }
-  save(); render();
+  else if (act === "dlreport") { return saveFile(`property-watch-report-${today()}.txt`, buildReport(), "text/plain"); }
+  const y = window.scrollY; save(); render(); window.scrollTo(0, y);
 });
 app.addEventListener("toggle", (e) => { const d = e.target; if (d.dataset && d.dataset.card) d.open ? openCards.add(d.dataset.card) : openCards.delete(d.dataset.card); }, true);
 app.addEventListener("submit", (e) => {
   if (e.target.id !== "subForm") return;
   e.preventDefault();
+  if (acItems.length && acIndex >= 0) { const s = acItems[acIndex]; acItems = []; return addSuburbs([subLabel(s)]); }
   const v = $("#subInput").value.trim(); if (!v) return;
-  v.split(/;|\n/).map(s => s.trim()).filter(Boolean).forEach(s => { if (!state.brief.suburbs.includes(s)) state.brief.suburbs.push(s); });
-  save(); render(); const i = $("#subInput"); if (i) i.focus();
+  /* a typed name that matches exactly one suburb gets its state and postcode filled in */
+  const exact = suggest(v).filter(s => s.k === v.toLowerCase() || subLabel(s).toLowerCase() === v.toLowerCase());
+  acItems = [];
+  if (exact.length === 1) return addSuburbs([subLabel(exact[0])]);
+  if (exact.length > 1) { acItems = exact; acIndex = 0; $("#subInput").focus(); drawAc(); toast("More than one match: pick the right state"); return; }
+  addSuburbs(v.split(/;|\n/));
 });
 
-/* Text inputs update state on input (no re-render, so focus stays); change re-renders derived views. */
 function applyInput(t) {
   const d = t.dataset;
   const val = t.type === "checkbox" ? t.checked : t.value;
   if (d.b !== undefined) { state.brief[d.b] = val; }
+  else if (d.type) { const set = new Set(state.brief.types); val ? set.add(d.type) : set.delete(d.type); state.brief.types = PROPERTY_TYPES.map(x => x[0]).filter(x => set.has(x)); }
+  else if (d.set) { state.settings[d.set] = val.trim(); searchError = null; }
   else if (d.pid && d.pf) { const p = findProp(d.pid); if (d.pf === "sources") p.sources = val.split("\n").map(s => s.trim()).filter(Boolean); else p[d.pf] = val; }
   else if (d.pid && d.pb) { findProp(d.pid)[d.pb] = val; }
   else if (d.pid && d.band) { findProp(d.pid).bands[d.band] = val; }
@@ -810,21 +1098,33 @@ function applyInput(t) {
   else if (d.pid && d.comp !== undefined) { findProp(d.pid).comps[+d.comp][d.cf] = val; }
   else if (d.rid) { draftRun.rows[d.rid][d.rf] = val; }
   else if (d.run) { draftRun[d.run] = val; }
+  else if (d.ui) { if (d.ui === "sort") resSort = val; else if (d.ui === "hide") resHide = val; else resQuery = val; }
   else return false;
   return true;
 }
 const focusVals = new Map();
 app.addEventListener("focusin", (e) => { const t = e.target; if (t.dataset && t.dataset.pid && t.dataset.pf) focusVals.set(t, findProp(t.dataset.pid)?.[t.dataset.pf]); });
-app.addEventListener("input", (e) => { if (e.target.type !== "checkbox" && e.target.tagName !== "SELECT" && applyInput(e.target)) save(); });
+app.addEventListener("focusout", (e) => { if (e.target.id === "subInput") setTimeout(() => { if (document.activeElement?.id !== "subInput") { acItems = []; drawAc(); } }, 120); });
+let filterTimer;
+app.addEventListener("input", (e) => {
+  const t = e.target;
+  if (t.id === "subInput") { acItems = suggest(t.value); acIndex = acItems.length ? 0 : -1; return drawAc(); }
+  if (t.dataset.ui === "q") {
+    resQuery = t.value; clearTimeout(filterTimer);
+    filterTimer = setTimeout(() => { const pos = t.selectionStart; render(); const n = $("#r-q"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }, 250);
+    return;
+  }
+  if (t.type !== "checkbox" && t.tagName !== "SELECT" && applyInput(t)) save();
+});
 app.addEventListener("change", (e) => {
   const t = e.target;
+  if (t.id === "subInput" || t.dataset.ui === "q") return;
   if (t.dataset.pid && t.dataset.pf && ["price", "status"].includes(t.dataset.pf)) {
     const p = findProp(t.dataset.pid), before = focusVals.has(t) ? focusVals.get(t) : p[t.dataset.pf];
     applyInput(t); logChange(p, t.dataset.pf, before, p[t.dataset.pf]); focusVals.delete(t);
   } else if (!applyInput(t)) return;
   save();
-  /* keep the run table and long text fields from re-rendering under the cursor */
-  if (t.dataset.rid || t.dataset.run || t.tagName === "TEXTAREA") return;
+  if (t.dataset.rid || t.dataset.run || t.dataset.set || t.tagName === "TEXTAREA") return;
   const y = window.scrollY; render(); window.scrollTo(0, y);
 });
 

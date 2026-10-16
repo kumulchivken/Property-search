@@ -1,5 +1,5 @@
 // Caches the app shell so Property Watch opens offline once visited.
-const CACHE = "property-watch-v1";
+const CACHE = "property-watch-v2";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon.svg"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener("activate", (e) => {
